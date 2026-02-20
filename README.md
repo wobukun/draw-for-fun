@@ -51,20 +51,6 @@ python backend/main.py
 - **POST /api/shutdown**：关闭服务器
 - **GET /api/**：返回服务器状态
 
-## 项目结构
-```
-draw_for_fun/
-├── backend/              # 后端代码
-│   ├── gacha/            # 抽卡逻辑
-│   ├── server/           # 服务器代码
-│   └── main.py           # 应用入口
-├── src/                  # 前端代码
-│   ├── components/       # Vue组件
-│   ├── main.js           # 前端入口
-│   └── App.vue           # 根组件
-├── package.json          # 前端依赖
-└── README.md             # 本文档
-```
 
 ## 版本
 - v0.1.1
