@@ -10,6 +10,7 @@ import ClosePrompt from './components/ClosePrompt.vue'
 import CharacterSimulationResult from './components/CharacterSimulationResult.vue'
 import WeaponSimulationResult from './components/WeaponSimulationResult.vue'
 import HelpPage from './components/HelpPage.vue'
+import GoalProbability from './components/GoalProbability.vue'
 
 const routes = [
   {
@@ -56,6 +57,11 @@ const routes = [
     path: '/help',
     name: 'HelpPage',
     component: HelpPage
+  },
+  {
+    path: '/goal-probability',
+    name: 'GoalProbability',
+    component: GoalProbability
   }
 ]
 

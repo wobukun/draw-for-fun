@@ -29,6 +29,7 @@ sys.path.insert(0, backend_dir)
 # 直接指定抽卡模拟器模块的路径
 draw_character_path = os.path.join(backend_dir, "gacha", "draw_character.py")
 draw_weapon_path = os.path.join(backend_dir, "gacha", "draw_weapon.py")
+goal_probability_path = os.path.join(backend_dir, "gacha", "goal_probability.py")
 
 # 动态导入模块
 import importlib.util
@@ -43,6 +44,7 @@ def import_module_from_path(module_name, file_path):
 # 导入抽卡模拟器模块
 draw_character = import_module_from_path("draw_character", draw_character_path)
 draw_weapon = import_module_from_path("draw_weapon", draw_weapon_path)
+goal_probability = import_module_from_path("goal_probability", goal_probability_path)
 
 CharacterGachaSimulator = draw_character.CharacterGachaSimulator
 WeaponGachaSimulator = draw_weapon.WeaponGachaSimulator
@@ -147,6 +149,119 @@ class GachaServer:
                 return jsonify({'error': 'Unknown mode'}), 400
         except Exception as e:
             app.logger.error(f"Error handling gacha request: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    def handle_goal_probability(self):
+        """根据资源与目标，估算达成目标概率（蒙特卡洛模拟）"""
+        try:
+            data = request.json or {}
+
+            # 资源（纠缠之缘=抽数）
+            resources = int(data.get('resources', data.get('intertwined_fate', data.get('pulls', 0))))
+            if resources < 0:
+                return jsonify({'error': 'resources must be >= 0'}), 400
+
+            # 目标：允许用“层数”或直接 copies
+            # 角色：0命=1个UP角色，1命=2个UP角色... => copies = constellation + 1
+            if 'target_character_copies' in data:
+                character_target_copies = int(data.get('target_character_copies', 0))
+            elif 'target_character_constellation' in data:
+                character_target_copies = goal_probability.constellation_to_copies(
+                    int(data.get('target_character_constellation', 0))
+                )
+            else:
+                character_target_copies = 0
+
+            # 武器：1精=1把目标武器，2精=2把目标武器... => copies = refinement
+            if 'target_weapon_copies' in data:
+                weapon_target_copies = int(data.get('target_weapon_copies', 0))
+            elif 'target_weapon_refinement' in data:
+                weapon_target_copies = goal_probability.refinement_to_copies(
+                    int(data.get('target_weapon_refinement', 0))
+                )
+            else:
+                weapon_target_copies = 0
+
+            if character_target_copies < 0 or weapon_target_copies < 0:
+                return jsonify({'error': 'targets must be >= 0'}), 400
+            if character_target_copies == 0 and weapon_target_copies == 0:
+                return jsonify({'error': 'at least one target must be > 0'}), 400
+
+            # 模拟参数
+            trials = int(data.get('trials', 5000))
+            if trials <= 0:
+                return jsonify({'error': 'trials must be > 0'}), 400
+            seed = data.get('seed', None)
+
+            # 起始抽卡状态（可选；默认都按 0 起算）
+            start = goal_probability.StartState(
+                character_pity=int(data.get('character_pity', 0)),
+                character_guarantee_up=bool(data.get('character_guarantee_up', False)),
+                weapon_pity=int(data.get('weapon_pity', 0)),
+                weapon_guarantee_up=bool(data.get('weapon_guarantee_up', False)),
+                weapon_fate_point=int(data.get('weapon_fate_point', 0)),
+                weapon_is_fate_guaranteed=bool(data.get('weapon_is_fate_guaranteed', False)),
+            )
+
+            # 策略：auto / character_first / weapon_first
+            strategy_req = str(data.get('strategy', 'auto')).lower()
+            results = {}
+
+            def run(strategy: str):
+                return goal_probability.estimate_goal_probability(
+                    pulls=resources,
+                    character_target_copies=character_target_copies,
+                    weapon_target_copies=weapon_target_copies,
+                    trials=trials,
+                    strategy=strategy,
+                    seed=seed,
+                    start=start,
+                    draw_character_module=draw_character,
+                    draw_weapon_module=draw_weapon,
+                )
+
+            if strategy_req in ('character_first', 'character_then_weapon'):
+                r = run('character_then_weapon')
+                results[r['strategy']] = r
+                best = r
+            elif strategy_req in ('weapon_first', 'weapon_then_character'):
+                r = run('weapon_then_character')
+                results[r['strategy']] = r
+                best = r
+            elif strategy_req == 'auto':
+                r1 = run('character_then_weapon')
+                r2 = run('weapon_then_character')
+                results[r1['strategy']] = r1
+                results[r2['strategy']] = r2
+                best = r1 if r1['probability'] >= r2['probability'] else r2
+            else:
+                return jsonify({'error': f'Unknown strategy: {strategy_req}'}), 400
+
+            return jsonify({
+                'resources': resources,
+                'targets': {
+                    'character_target_copies': character_target_copies,
+                    'weapon_target_copies': weapon_target_copies
+                },
+                'interpretation': {
+                    'character_copy_definition': '每个UP五星角色计为1个“角色拷贝”（用于命之座）',
+                    'weapon_copy_definition': '每个“定轨武器”(is_fate=True)计为1把目标武器（用于精炼）'
+                },
+                'start_state': {
+                    'character_pity': start.character_pity,
+                    'character_guarantee_up': start.character_guarantee_up,
+                    'weapon_pity': start.weapon_pity,
+                    'weapon_guarantee_up': start.weapon_guarantee_up,
+                    'weapon_fate_point': start.weapon_fate_point,
+                    'weapon_is_fate_guaranteed': start.weapon_is_fate_guaranteed
+                },
+                'best': best,
+                'all_strategies': results
+            })
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app.logger.error(f"Error handling goal probability request: {e}")
             return jsonify({'error': str(e)}), 500
     
     def shutdown(self):
@@ -380,6 +495,10 @@ server = GachaServer()
 @app.route('/api/gacha', methods=['POST'])
 def handle_gacha():
     return server.handle_gacha()
+
+@app.route('/api/goal_probability', methods=['POST'])
+def handle_goal_probability():
+    return server.handle_goal_probability()
 
 @app.route('/api/shutdown', methods=['POST'])
 def shutdown():

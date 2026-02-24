@@ -4,6 +4,7 @@
     <div class="menu-container">
       <button @click="goToCharacterGacha" class="menu-button start-button">角色抽卡模拟</button>
       <button @click="goToWeaponGacha" class="menu-button weapon-button">武器抽卡模拟</button>
+      <button @click="goToGoalProbability" class="menu-button probability-button">抽取概率计算（Beta）</button>
       <button @click="goToHelpPage" class="menu-button help-button">查看帮助</button>
       <button @click="exitApp" class="menu-button exit-button">退出</button>
     </div>
@@ -26,6 +27,9 @@ export default {
     },
     goToWeaponGacha() {
       this.$router.push('/weapon')
+    },
+    goToGoalProbability() {
+      this.$router.push('/goal-probability')
     },
     goToHelpPage() {
       this.$router.push('/help')
@@ -191,6 +195,18 @@ h1 {
 .weapon-button:hover {
   background: linear-gradient(135deg, #8fd3f4 0%, #84fab0 100%);
   box-shadow: 0 10px 24px rgba(132, 250, 176, 0.4);
+}
+
+.probability-button {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  color: #2c3e50;
+  box-shadow: 0 4px 12px rgba(226, 232, 240, 0.7);
+  border: 1px solid #e2e8f0;
+}
+
+.probability-button:hover {
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  box-shadow: 0 8px 20px rgba(226, 232, 240, 0.9);
 }
 
 .help-button {
