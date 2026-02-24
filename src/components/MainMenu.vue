@@ -18,7 +18,7 @@ export default {
   data() {
     return {
       // 版本号，可在此处方便修改
-      version: '0.1.1'
+      version: '0.1.2'
     }
   },
   methods: {
@@ -198,15 +198,15 @@ h1 {
 }
 
 .probability-button {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  background: linear-gradient(135deg, #e6f7ff 0%, #f0f9ff 100%);
   color: #2c3e50;
-  box-shadow: 0 4px 12px rgba(226, 232, 240, 0.7);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(191, 230, 255, 0.7);
+  border: 1px solid #bae6fd;
 }
 
 .probability-button:hover {
-  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-  box-shadow: 0 8px 20px rgba(226, 232, 240, 0.9);
+  background: linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%);
+  box-shadow: 0 8px 20px rgba(191, 230, 255, 0.9);
 }
 
 .help-button {
