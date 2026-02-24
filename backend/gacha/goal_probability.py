@@ -7,7 +7,7 @@
 - 武器目标用“精炼层数”表示：1精=1把目标武器，2精=2把目标武器，... => copies = refinement
 
 实现策略：
-- 使用蒙特卡洛模拟估算概率（可设置 trials）
+- 使用蒙特卡洛模拟估算概率（固定 trials）
 - 提供两种“先抽谁”的简单策略，并在 auto 模式下返回更高者：
   - character_then_weapon：先抽角色直到达成（或抽数用尽），剩余抽数用于武器
   - weapon_then_character：先抽武器直到达成（或抽数用尽），剩余抽数用于角色
@@ -27,7 +27,7 @@ Strategy = Literal["character_then_weapon", "weapon_then_character"]
 @dataclass(frozen=True)
 class StartState:
     """抽卡起始状态数据类
-    
+
     用于记录角色池和武器池的当前状态，包括保底计数、UP保证等信息。
     """
     # 角色池
@@ -42,14 +42,14 @@ class StartState:
 
 class GoalProbabilityCalculator:
     """目标达成概率计算器
-    
+
     使用蒙特卡洛模拟方法估算在指定资源下达成抽卡目标的概率。
     支持角色和武器两种抽卡类型，以及不同的抽取策略。
     """
 
     def __init__(self, max_total_draws: int = 3_000_000) -> None:
         """初始化概率计算器
-        
+
         Args:
             max_total_draws: 单次请求的最大总抽数限制，避免服务器阻塞
         """
@@ -61,13 +61,13 @@ class GoalProbabilityCalculator:
     @staticmethod
     def constellation_to_copies(constellation: int) -> int:
         """将命之座层数转换为目标拷贝数
-        
+
         Args:
             constellation: 命之座层数（0-6）
-            
+
         Returns:
             int: 需要的UP角色数量
-            
+
         Raises:
             ValueError: 当命之座层数超出有效范围时
         """
@@ -80,13 +80,13 @@ class GoalProbabilityCalculator:
     @staticmethod
     def refinement_to_copies(refinement: int) -> int:
         """将精炼层数转换为目标拷贝数
-        
+
         Args:
             refinement: 精炼层数（0-5，0表示不抽武器）
-            
+
         Returns:
             int: 需要的定轨武器数量
-            
+
         Raises:
             ValueError: 当精炼层数超出有效范围时
         """
@@ -103,11 +103,11 @@ class GoalProbabilityCalculator:
     @staticmethod
     def _wilson_ci95(successes: int, n: int) -> tuple[float, float]:
         """计算95%置信区间的Wilson区间
-        
+
         Args:
             successes: 成功次数
             n: 总试验次数
-            
+
         Returns:
             tuple[float, float]: 置信区间的下界和上界
         """
@@ -137,7 +137,7 @@ class GoalProbabilityCalculator:
         draw_weapon_module,
     ) -> bool:
         """模拟单次试验
-        
+
         Args:
             pulls: 总抽数
             character_target_copies: 目标角色拷贝数
@@ -147,7 +147,7 @@ class GoalProbabilityCalculator:
             start: 起始状态
             draw_character_module: 角色抽卡模块
             draw_weapon_module: 武器抽卡模块
-            
+
         Returns:
             bool: 是否达成目标
         """
@@ -220,7 +220,7 @@ class GoalProbabilityCalculator:
         draw_weapon_module,
     ) -> dict:
         """估算目标达成概率
-        
+
         Args:
             pulls: 总抽数
             character_target_copies: 目标角色拷贝数
@@ -231,7 +231,7 @@ class GoalProbabilityCalculator:
             start: 起始状态
             draw_character_module: 角色抽卡模块
             draw_weapon_module: 武器抽卡模块
-            
+
         Returns:
             dict: 包含概率估算结果的字典
         """
@@ -293,10 +293,10 @@ class GoalProbabilityCalculator:
 
 def constellation_to_copies(constellation: int) -> int:
     """兼容旧接口，内部委托给 GoalProbabilityCalculator
-    
+
     Args:
         constellation: 命之座层数
-        
+
     Returns:
         int: 需要的UP角色数量
     """
@@ -305,10 +305,10 @@ def constellation_to_copies(constellation: int) -> int:
 
 def refinement_to_copies(refinement: int) -> int:
     """兼容旧接口，内部委托给 GoalProbabilityCalculator
-    
+
     Args:
         refinement: 精炼层数
-        
+
     Returns:
         int: 需要的定轨武器数量
     """
@@ -329,7 +329,7 @@ def estimate_goal_probability(
     max_total_draws: int = 3_000_000,
 ) -> dict:
     """兼容旧接口的函数形式入口，实际由 GoalProbabilityCalculator 实例完成计算。
-    
+
     Args:
         pulls: 总抽数
         character_target_copies: 目标角色拷贝数
@@ -341,7 +341,7 @@ def estimate_goal_probability(
         draw_character_module: 角色抽卡模块
         draw_weapon_module: 武器抽卡模块
         max_total_draws: 最大总抽数限制
-        
+
     Returns:
         dict: 包含概率估算结果的字典
     """
@@ -357,4 +357,3 @@ def estimate_goal_probability(
         draw_character_module=draw_character_module,
         draw_weapon_module=draw_weapon_module,
     )
-

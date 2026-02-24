@@ -77,19 +77,6 @@
             </p>
           </div>
 
-          <div class="form-group">
-            <label for="trials">模拟次数（越大越精确，性能开销越高）</label>
-            <input
-              id="trials"
-              type="number"
-              min="100"
-              max="20000"
-              v-model.number="form.trials"
-            />
-            <p class="helper-text">
-              推荐 3000 - 10000。非常大的值会影响性能，后端会自动做安全限流。
-            </p>
-          </div>
 
           <div class="form-group">
             <label>抽取策略</label>
@@ -276,9 +263,6 @@ export default {
       if (!this.form.includeCharacter && !this.form.includeWeapon) {
         return '请至少选择一个目标（角色命之座或武器精炼）。'
       }
-      if (this.form.trials < 100 || this.form.trials > 20000) {
-        return '模拟次数建议在 100 ~ 20000 之间。'
-      }
       return ''
     },
     calculate() {
@@ -430,6 +414,21 @@ h1 {
   border-color: #4299e1;
   box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.25);
   background: #ffffff;
+}
+
+.form-group input:disabled {
+  background: #e2e8f0;
+  border-color: #cbd5e0;
+  color: #718096;
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.form-group input:disabled:hover {
+  border-color: #cbd5e0;
+  background: #e2e8f0;
+  transform: none;
 }
 
 .helper-text {
