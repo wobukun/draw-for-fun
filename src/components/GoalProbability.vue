@@ -12,15 +12,44 @@
         <h2>输入您的资源与目标</h2>
         <div class="form-grid">
           <div class="form-group">
-            <label for="resources">拥有的纠缠之缘数量（总抽数）</label>
+            <label for="resources">拥有的纠缠之缘数量</label>
             <input
               id="resources"
               type="number"
               min="0"
+              max="9999999"
               v-model.number="form.resources"
               placeholder="例如：180"
             />
             <p class="helper-text">1 纠缠之缘 = 1 抽，可在角色池或武器池中自由分配。</p>
+          </div>
+
+          <div class="form-group">
+            <label for="primogems">拥有的原石数量</label>
+            <input
+              id="primogems"
+              type="number"
+              min="0"
+              max="9999999"
+              v-model.number="form.primogems"
+              placeholder="例如：1600"
+              @input="calculateTotalResources"
+            />
+            <p class="helper-text">160 原石 = 1 纠缠之缘</p>
+          </div>
+
+          <div class="form-group">
+            <label for="crystals">拥有的创世结晶数量</label>
+            <input
+              id="crystals"
+              type="number"
+              min="0"
+              max="9999999"
+              v-model.number="form.crystals"
+              placeholder="例如：1600"
+              @input="calculateTotalResources"
+            />
+            <p class="helper-text">1 创世结晶 = 1 原石</p>
           </div>
 
           <div class="form-group">
@@ -73,39 +102,8 @@
               placeholder="1 = 1 精（1把定轨），2 = 2 精（2把定轨）..."
             />
             <p class="helper-text">
-              1 精 = 需要 1 把定轨武器（is_fate = true），2 精 = 2 把定轨武器，以此类推。
+              1 精 = 需要 1 把定轨武器，2 精 = 2 把定轨武器，以此类推。
             </p>
-          </div>
-
-
-          <div class="form-group">
-            <label>抽取策略</label>
-            <div class="strategy-options">
-              <label class="strategy-option">
-                <input
-                  type="radio"
-                  value="auto"
-                  v-model="form.strategy"
-                />
-                <span>自动选择（推荐）：比较两种顺序，返回概率更高的结果</span>
-              </label>
-              <label class="strategy-option">
-                <input
-                  type="radio"
-                  value="character_first"
-                  v-model="form.strategy"
-                />
-                <span>先抽角色（直到达成或资源用尽），再抽武器</span>
-              </label>
-              <label class="strategy-option">
-                <input
-                  type="radio"
-                  value="weapon_first"
-                  v-model="form.strategy"
-                />
-                <span>先抽武器（直到达成或资源用尽），再抽角色</span>
-              </label>
-            </div>
           </div>
         </div>
 
@@ -155,10 +153,10 @@
         </div>
 
         <div class="probability-section">
-          <h3>最佳策略（{{ formatStrategy(result.best.strategy) }}）</h3>
+          <h3>计算结果（先角色，后武器策略）</h3>
           <div class="probability-main">
             <div class="probability-value">
-              {{ (result.best.probability * 100).toFixed(2) }}%
+              {{ result.best.probability * 100 < 0.01 ? '<0.01%' : (result.best.probability * 100).toFixed(2) + '%' }}
             </div>
             <div class="probability-detail">
               95% 置信区间：
@@ -168,30 +166,6 @@
             </div>
             <div class="probability-detail secondary">
               模拟次数（实际使用）：{{ result.best.trials_used }} 次
-            </div>
-          </div>
-        </div>
-
-        <div class="strategy-compare">
-          <h3>策略对比</h3>
-          <div class="strategy-grid">
-            <div
-              v-for="s in strategyKeys"
-              :key="s"
-              class="strategy-card"
-              :class="{ 'best-strategy': s === result.best.strategy }"
-            >
-              <div class="strategy-title">
-                {{ formatStrategy(s) }}
-                <span v-if="s === result.best.strategy" class="tag-best">当前最佳</span>
-              </div>
-              <div class="strategy-prob">
-                {{ (result.all_strategies[s].probability * 100).toFixed(2) }}%
-              </div>
-              <div class="strategy-meta">
-                模拟：{{ result.all_strategies[s].trials_used }} 次，
-                成功：{{ result.all_strategies[s].successes }} 次
-              </div>
             </div>
           </div>
         </div>
@@ -212,11 +186,12 @@ export default {
   data() {
     return {
       form: {
-        resources: 180,
+        resources: 0,
+        primogems: 0,
+        crystals: 0,
         targetCharacterConstellation: 0,
-        targetWeaponRefinement: 0,
+        targetWeaponRefinement: 1,
         trials: 5000,
-        strategy: 'auto',
         includeCharacter: true,
         includeWeapon: true
       },
@@ -226,9 +201,11 @@ export default {
     }
   },
   computed: {
-    strategyKeys() {
-      if (!this.result || !this.result.all_strategies) return []
-      return Object.keys(this.result.all_strategies)
+    totalResources() {
+      // 计算总抽数：纠缠之缘 + (原石 + 创世结晶兑换的原石) / 160
+      const totalPrimogems = (this.form.primogems || 0) + (this.form.crystals || 0)
+      const primogemsToFate = Math.floor(totalPrimogems / 160)
+      return (this.form.resources || 0) + primogemsToFate
     }
   },
   methods: {
@@ -236,9 +213,26 @@ export default {
       this.$router.push('/')
     },
     validateForm() {
-      if (this.form.resources < 0) {
-        return '纠缠之缘数量必须 ≥ 0。'
+      // 验证纠缠之缘数范围
+      if (this.form.resources === null || this.form.resources < 0 || this.form.resources > 9999999) {
+        return '纠缠之缘数量必须在 0 - 9999999 之间。'
       }
+      
+      // 验证原石数范围
+      if (this.form.primogems === null || this.form.primogems < 0 || this.form.primogems > 9999999) {
+        return '原石数量必须在 0 - 9999999 之间。'
+      }
+      
+      // 验证创世结晶数范围
+      if (this.form.crystals === null || this.form.crystals < 0 || this.form.crystals > 9999999) {
+        return '创世结晶数量必须在 0 - 9999999 之间。'
+      }
+      
+      // 验证总抽数
+      if (this.totalResources <= 0) {
+        return '总抽数必须 > 0。'
+      }
+      
       // 角色：仅在勾选时校验，范围 0-6
       if (this.form.includeCharacter) {
         if (
@@ -249,6 +243,7 @@ export default {
           return '角色命之座层数必须在 0 - 6 之间。'
         }
       }
+      
       // 武器：仅在勾选时校验，范围 1-5
       if (this.form.includeWeapon) {
         if (
@@ -259,11 +254,17 @@ export default {
           return '武器精炼等级必须在 1 - 5 之间。'
         }
       }
+      
       // 至少选择一个目标（角色或武器）
       if (!this.form.includeCharacter && !this.form.includeWeapon) {
         return '请至少选择一个目标（角色命之座或武器精炼）。'
       }
+      
       return ''
+    },
+    calculateTotalResources() {
+      // 此方法用于触发计算属性更新
+      // 实际计算逻辑在 computed.totalResources 中
     },
     calculate() {
       this.errorMessage = ''
@@ -276,8 +277,8 @@ export default {
       this.result = null
 
       const payload = {
-        resources: this.form.resources,
-        strategy: this.form.strategy,
+        resources: this.totalResources,
+        strategy: "character_first",
         trials: this.form.trials
       }
 
@@ -351,12 +352,12 @@ h1 {
 }
 
 .header-button {
-  padding: 10px 20px;
+  padding: 14px 24px;
   border-radius: 10px;
   border: 1px solid #e2e8f0;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   color: #2d3748;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -391,6 +392,7 @@ h1 {
 .form-group {
   display: flex;
   flex-direction: column;
+  margin-bottom: 20px;
 }
 
 .form-group label {
@@ -643,4 +645,3 @@ h1 {
   }
 }
 </style>
-

@@ -151,6 +151,20 @@ class GoalProbabilityCalculator:
         Returns:
             bool: 是否达成目标
         """
+        # 预计算目标数量，减少重复计算
+        need_char = max(0, int(character_target_copies))
+        need_weap = max(0, int(weapon_target_copies))
+        remaining = int(pulls)
+
+        # 快速路径：如果抽数不足，直接返回失败
+        if remaining < (need_char + need_weap):
+            return False
+
+        # 快速路径：如果不需要抽角色或武器，直接返回成功
+        if need_char == 0 and need_weap == 0:
+            return True
+
+        # 减少模块属性访问开销
         CharacterGachaSimulator = draw_character_module.CharacterGachaSimulator
         WeaponGachaSimulator = draw_weapon_module.WeaponGachaSimulator
 
@@ -159,6 +173,7 @@ class GoalProbabilityCalculator:
         seed_char = int(rng.integers(0, 2**31 - 1))
         seed_weap = int(rng.integers(0, 2**31 - 1))
 
+        # 创建模拟器实例
         char_sim = CharacterGachaSimulator(pity=start.character_pity, seed=seed_char)
         char_sim.guarantee_up = bool(start.character_guarantee_up)
 
@@ -167,40 +182,48 @@ class GoalProbabilityCalculator:
         weap_sim.fate_point = int(start.weapon_fate_point)
         weap_sim.is_fate_guaranteed = bool(start.weapon_is_fate_guaranteed)
 
-        need_char = max(0, int(character_target_copies))
-        need_weap = max(0, int(weapon_target_copies))
         got_char = 0
         got_weap = 0
 
-        remaining = int(pulls)
-        if remaining <= 0:
-            return need_char == 0 and need_weap == 0
-
-        def pull_character_until_done() -> None:
-            """抽角色直到达成目标或抽数用尽"""
-            nonlocal remaining, got_char
+        # 执行抽取策略
+        if strategy == "character_then_weapon":
+            # 抽取角色
             while remaining > 0 and got_char < need_char:
                 success, _, _, is_up = char_sim.draw_once()
                 remaining -= 1
                 if success and is_up:
                     got_char += 1
-
-        def pull_weapon_until_done() -> None:
-            """抽武器直到达成目标或抽数用尽"""
-            nonlocal remaining, got_weap
+                    # 提前终止：已达成所有目标
+                    if got_char >= need_char and got_weap >= need_weap:
+                        return True
+            # 抽取武器
             while remaining > 0 and got_weap < need_weap:
                 success, _, _, _, is_fate = weap_sim.draw_once()
                 remaining -= 1
-                # refinement 目标按"定轨武器"计数（更贴近"目标武器"）
                 if success and is_fate:
                     got_weap += 1
-
-        if strategy == "character_then_weapon":
-            pull_character_until_done()
-            pull_weapon_until_done()
+                    # 提前终止：已达成所有目标
+                    if got_char >= need_char and got_weap >= need_weap:
+                        return True
         elif strategy == "weapon_then_character":
-            pull_weapon_until_done()
-            pull_character_until_done()
+            # 抽取武器
+            while remaining > 0 and got_weap < need_weap:
+                success, _, _, _, is_fate = weap_sim.draw_once()
+                remaining -= 1
+                if success and is_fate:
+                    got_weap += 1
+                    # 提前终止：已达成所有目标
+                    if got_char >= need_char and got_weap >= need_weap:
+                        return True
+            # 抽取角色
+            while remaining > 0 and got_char < need_char:
+                success, _, _, is_up = char_sim.draw_once()
+                remaining -= 1
+                if success and is_up:
+                    got_char += 1
+                    # 提前终止：已达成所有目标
+                    if got_char >= need_char and got_weap >= need_weap:
+                        return True
         else:
             raise ValueError(f"Unknown strategy: {strategy}")
 
@@ -242,21 +265,52 @@ class GoalProbabilityCalculator:
         if trials <= 0:
             raise ValueError("trials must be > 0")
 
-        # 保护：避免 requests 过大导致卡死
-        if pulls > 0:
-            cap = max(1, self.max_total_draws // pulls)
-            effective_trials = min(trials, cap)
-        else:
-            effective_trials = trials
+        # 当总抽数小于角色数加武器数时，概率应显示为0
+        if pulls < (character_target_copies + weapon_target_copies):
+            return {
+                "strategy": strategy,
+                "pulls": pulls,
+                "trials_requested": trials,
+                "trials_used": 0,
+                "successes": 0,
+                "probability": 0.0,
+                "frequency_estimate": 0.0,
+                "ci95_wilson": [0.0, 0.0],
+            }
+
+        # 当抽数足够大时，直接返回100%概率
+        # 抽数>=角色数*180+武器数*160时，概率显示为100%
+        total_pulls_needed = character_target_copies * 180 + weapon_target_copies * 160
+
+        # 检查是否满足条件
+        if pulls >= total_pulls_needed:
+            return {
+                "strategy": strategy,
+                "pulls": pulls,
+                "trials_requested": trials,
+                "trials_used": 0,
+                "successes": 0,
+                "probability": 1.0,
+                "frequency_estimate": 1.0,
+                "ci95_wilson": [1.0, 1.0],
+            }
+
+        # 固定试验次数以提升性能
+        # 设置为固定值 10000 次，平衡精度和性能
+        fixed_trials = 10000
+
+        # 固定试验次数为 10000 次，不受抽数影响
+        effective_trials = fixed_trials
 
         base_seed = 123456789 if seed is None else int(seed)
         ss = np.random.SeedSequence(base_seed)
         child_seeds = ss.spawn(effective_trials)
 
         successes = 0
-        for i in range(effective_trials):
-            trial_seed = int(child_seeds[i].generate_state(1, dtype=np.uint32)[0])
-            ok = self._simulate_one_trial(
+
+        # 定义模拟函数
+        def simulate_trial(trial_seed):
+            return self._simulate_one_trial(
                 pulls=pulls,
                 character_target_copies=character_target_copies,
                 weapon_target_copies=weapon_target_copies,
@@ -266,8 +320,21 @@ class GoalProbabilityCalculator:
                 draw_character_module=draw_character_module,
                 draw_weapon_module=draw_weapon_module,
             )
-            if ok:
-                successes += 1
+
+        # 尝试使用并行计算
+        try:
+            import concurrent.futures
+            # 使用ThreadPoolExecutor，避免多进程无法访问局部函数的问题
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                trial_seeds = [int(child_seeds[i].generate_state(1, dtype=np.uint32)[0]) for i in range(effective_trials)]
+                results = list(executor.map(simulate_trial, trial_seeds))
+                successes = sum(results)
+        except ImportError:
+            # 回退到串行执行
+            for i in range(effective_trials):
+                trial_seed = int(child_seeds[i].generate_state(1, dtype=np.uint32)[0])
+                if simulate_trial(trial_seed):
+                    successes += 1
 
         # 频率估计：successes / n
         freq_p = successes / effective_trials if effective_trials else 0.0
