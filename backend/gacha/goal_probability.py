@@ -192,7 +192,12 @@ class GoalProbabilityCalculator:
             if ok:
                 successes += 1
 
-        p = successes / effective_trials if effective_trials else 0.0
+        # 频率估计：successes / n
+        freq_p = successes / effective_trials if effective_trials else 0.0
+        # 使用 Jeffreys 先验 Beta(0.5, 0.5) 的贝叶斯估计，避免小样本下直接为 0 或 1
+        # posterior mean = (s + 0.5) / (n + 1)
+        bayes_p = (successes + 0.5) / (effective_trials + 1) if effective_trials else 0.0
+
         ci_lo, ci_hi = self._wilson_ci95(successes, effective_trials)
         return {
             "strategy": strategy,
@@ -200,7 +205,9 @@ class GoalProbabilityCalculator:
             "trials_requested": trials,
             "trials_used": effective_trials,
             "successes": successes,
-            "probability": float(p),
+            # 对外使用平滑后的贝叶斯估计，降低小样本导致的 0 概率问题
+            "probability": float(bayes_p),
+            "frequency_estimate": float(freq_p),
             "ci95_wilson": [ci_lo, ci_hi],
         }
 
