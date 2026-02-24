@@ -27,10 +27,21 @@
             <label for="character-constellation">
               目标角色命之座层数（UP 角色）
             </label>
+            <div class="toggle-row">
+              <label class="toggle-label">
+                <input
+                  type="checkbox"
+                  v-model="form.includeCharacter"
+                />
+                <span>本次抽取角色</span>
+              </label>
+            </div>
             <input
               id="character-constellation"
               type="number"
               min="0"
+              max="6"
+              :disabled="!form.includeCharacter"
               v-model.number="form.targetCharacterConstellation"
               placeholder="0 = 0命（1个UP），1 = 1命（2个UP）..."
             />
@@ -43,10 +54,21 @@
             <label for="weapon-refinement">
               目标武器精炼等级（定轨武器）
             </label>
+            <div class="toggle-row">
+              <label class="toggle-label">
+                <input
+                  type="checkbox"
+                  v-model="form.includeWeapon"
+                />
+                <span>本次抽取武器</span>
+              </label>
+            </div>
             <input
               id="weapon-refinement"
               type="number"
-              min="0"
+              min="1"
+              max="5"
+              :disabled="!form.includeWeapon"
               v-model.number="form.targetWeaponRefinement"
               placeholder="1 = 1 精（1把定轨），2 = 2 精（2把定轨）..."
             />
@@ -207,7 +229,9 @@ export default {
         targetCharacterConstellation: 0,
         targetWeaponRefinement: 0,
         trials: 5000,
-        strategy: 'auto'
+        strategy: 'auto',
+        includeCharacter: true,
+        includeWeapon: true
       },
       isLoading: false,
       errorMessage: '',
@@ -228,20 +252,29 @@ export default {
       if (this.form.resources < 0) {
         return '纠缠之缘数量必须 ≥ 0。'
       }
-      if (this.form.targetCharacterConstellation < 0) {
-        return '角色命之座层数必须 ≥ 0。'
+      // 角色：仅在勾选时校验，范围 0-6
+      if (this.form.includeCharacter) {
+        if (
+          this.form.targetCharacterConstellation === null ||
+          this.form.targetCharacterConstellation < 0 ||
+          this.form.targetCharacterConstellation > 6
+        ) {
+          return '角色命之座层数必须在 0 - 6 之间。'
+        }
       }
-      if (this.form.targetWeaponRefinement < 0) {
-        return '武器精炼等级必须 ≥ 0。'
+      // 武器：仅在勾选时校验，范围 1-5
+      if (this.form.includeWeapon) {
+        if (
+          this.form.targetWeaponRefinement === null ||
+          this.form.targetWeaponRefinement < 1 ||
+          this.form.targetWeaponRefinement > 5
+        ) {
+          return '武器精炼等级必须在 1 - 5 之间。'
+        }
       }
-      const hasCharacter =
-        this.form.targetCharacterConstellation &&
-        this.form.targetCharacterConstellation > 0
-      const hasWeapon =
-        this.form.targetWeaponRefinement &&
-        this.form.targetWeaponRefinement > 0
-      if (!hasCharacter && !hasWeapon) {
-        return '请至少设置一个目标（角色命之座或武器精炼）。'
+      // 至少选择一个目标（角色或武器）
+      if (!this.form.includeCharacter && !this.form.includeWeapon) {
+        return '请至少选择一个目标（角色命之座或武器精炼）。'
       }
       if (this.form.trials < 100 || this.form.trials > 20000) {
         return '模拟次数建议在 100 ~ 20000 之间。'
@@ -258,14 +291,22 @@ export default {
       this.isLoading = true
       this.result = null
 
+      const payload = {
+        resources: this.form.resources,
+        strategy: this.form.strategy,
+        trials: this.form.trials
+      }
+
+      if (this.form.includeCharacter) {
+        payload.target_character_constellation = this.form.targetCharacterConstellation
+      }
+
+      if (this.form.includeWeapon) {
+        payload.target_weapon_refinement = this.form.targetWeaponRefinement
+      }
+
       axios
-        .post('/api/goal_probability', {
-          resources: this.form.resources,
-          target_character_constellation: this.form.targetCharacterConstellation,
-          target_weapon_refinement: this.form.targetWeaponRefinement,
-          strategy: this.form.strategy,
-          trials: this.form.trials
-        })
+        .post('/api/goal_probability', payload)
         .then((response) => {
           this.result = response.data
         })
@@ -395,6 +436,18 @@ h1 {
   font-size: 12px;
   color: #718096;
   margin-top: 4px;
+}
+
+.toggle-row {
+  margin: 4px 0 6px;
+}
+
+.toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #4a5568;
 }
 
 .strategy-options {
