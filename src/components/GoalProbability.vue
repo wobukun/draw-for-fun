@@ -19,7 +19,6 @@
               min="0"
               max="9999999"
               v-model.number="form.resources"
-              placeholder="例如：180"
             />
             <p class="helper-text">1 纠缠之缘 = 1 抽，可在角色池或武器池中自由分配。</p>
           </div>
@@ -32,7 +31,6 @@
               min="0"
               max="9999999"
               v-model.number="form.primogems"
-              placeholder="例如：1600"
               @input="calculateTotalResources"
             />
             <p class="helper-text">160 原石 = 1 纠缠之缘</p>
@@ -46,7 +44,6 @@
               min="0"
               max="9999999"
               v-model.number="form.crystals"
-              placeholder="例如：1600"
               @input="calculateTotalResources"
             />
             <p class="helper-text">1 创世结晶 = 1 原石</p>
@@ -72,7 +69,6 @@
               max="6"
               :disabled="!form.includeCharacter"
               v-model.number="form.targetCharacterConstellation"
-              placeholder="0 = 0命（1个UP），1 = 1命（2个UP）..."
             />
             <p class="helper-text">
               0 命 = 需要 1 个 UP 角色，1 命 = 2 个 UP 角色，以此类推。
@@ -99,11 +95,19 @@
               max="5"
               :disabled="!form.includeWeapon"
               v-model.number="form.targetWeaponRefinement"
-              placeholder="1 = 1 精（1把定轨），2 = 2 精（2把定轨）..."
             />
             <p class="helper-text">
               1 精 = 需要 1 把定轨武器，2 精 = 2 把定轨武器，以此类推。
             </p>
+          </div>
+
+          <div class="form-group checkbox-group">
+            <input
+              type="checkbox"
+              id="calculateRequiredPulls"
+              v-model="form.calculateRequiredPulls"
+            >
+            <label for="calculateRequiredPulls">同时计算：达成目标所需总抽数（保底）</label>
           </div>
         </div>
 
@@ -113,7 +117,10 @@
             :disabled="isLoading"
             @click="calculate"
           >
-            <span v-if="!isLoading">开始计算</span>
+            <span v-if="!isLoading">
+              <span v-if="form.calculateRequiredPulls">开始计算（包含保底抽数计算，时间较长）</span>
+              <span v-else>开始计算</span>
+            </span>
             <span v-else>计算中，请稍候...</span>
           </button>
         </div>
@@ -153,7 +160,7 @@
         </div>
 
         <div class="probability-section">
-          <h3>计算结果（先角色，后武器策略）</h3>
+          <h3>达成目标概率（先角色，后武器策略）</h3>
           <div class="probability-main">
             <div class="probability-value">
               {{ result.best.probability * 100 < 0.01 ? '<0.01%' : (result.best.probability * 100).toFixed(2) + '%' }}
@@ -169,6 +176,38 @@
             </div>
           </div>
         </div>
+
+        <div v-if="requiredPullsFor95Percent" class="probability-section">
+          <h3>达成目标所需总抽数（保底，按95%概率分位计算）：</h3>
+          <div class="probability-main">
+            <div class="probability-value">
+              {{ requiredPullsFor95Percent.required_pulls }}
+            </div>
+            <div class="probability-detail">
+              达成目标概率达到95%时所需总抽数
+            </div>
+            <div class="probability-detail secondary">
+              目标：角色 {{ requiredPullsFor95Percent.character_target_constellation }} 命，武器 {{ requiredPullsFor95Percent.weapon_target_refinement }} 精
+            </div>
+          </div>
+        </div>
+
+        <div v-if="requiredPullsFor95Percent" class="probability-section">
+          <h3>保底仍需抽数</h3>
+          <div class="probability-main">
+            <div class="probability-value">
+              {{ requiredPullsFor95Percent.remaining_pulls }}
+            </div>
+            <div class="probability-detail">
+              保底仍需金额（粗略估计）：¥{{ requiredPullsFor95Percent.remaining_amount_min.toFixed(2) }} ~ ¥{{ requiredPullsFor95Percent.remaining_amount_max.toFixed(2) }}
+            </div>
+          </div>
+        </div>
+
+        <!-- 返回顶部按钮 -->
+        <button class="back-to-top" @click="scrollToTop" v-show="showBackToTop">
+          TOP
+        </button>
 
         <p class="beta-note">
           本功能为 Beta 版，仅通过蒙特卡洛模拟做近似估计，结果存在随机波动，仅供娱乐与参考。
@@ -193,11 +232,14 @@ export default {
         targetWeaponRefinement: 1,
         trials: 5000,
         includeCharacter: true,
-        includeWeapon: true
+        includeWeapon: true,
+        calculateRequiredPulls: false
       },
       isLoading: false,
       errorMessage: '',
-      result: null
+      result: null,
+      requiredPullsFor95Percent: null,
+      showBackToTop: false
     }
   },
   computed: {
@@ -229,8 +271,8 @@ export default {
       }
       
       // 验证总抽数
-      if (this.totalResources <= 0) {
-        return '总抽数必须 > 0。'
+      if (this.totalResources < 0) {
+        return '总抽数必须 >= 0。'
       }
       
       // 角色：仅在勾选时校验，范围 0-6
@@ -290,16 +332,58 @@ export default {
         payload.target_weapon_refinement = this.form.targetWeaponRefinement
       }
 
-      axios
-        .post('/api/goal_probability', payload)
-        .then((response) => {
-          this.result = response.data
+      // 准备API调用
+      const apiCalls = [
+        // 计算达成目标概率
+        axios.post('/api/goal_probability', payload)
+      ]
+      
+      // 根据用户选择决定是否添加95%概率所需抽数的计算
+      if (this.form.calculateRequiredPulls) {
+        const requiredPullsPayload = {
+          character_target_constellation: this.form.includeCharacter ? this.form.targetCharacterConstellation : 0,
+          weapon_target_refinement: this.form.includeWeapon ? this.form.targetWeaponRefinement : 0,
+          strategy: "character_then_weapon"
+        }
+        apiCalls.push(axios.post('/api/required_pulls_for_95_percent', requiredPullsPayload))
+      }
+      
+      // 并行执行所有API调用
+      Promise.all(apiCalls)
+        .then((responses) => {
+          // 处理第一个响应（达成目标概率）
+          if (responses[0]) {
+            this.result = responses[0].data
+          }
+          
+          // 处理第二个响应（95%概率所需抽数）
+          if (responses[1]) {
+            this.requiredPullsFor95Percent = responses[1].data
+            
+            // 计算保底仍需抽数和保底仍需金额
+            if (this.requiredPullsFor95Percent && this.result) {
+              // 计算保底仍需抽数 = 保底达成目标所需抽数 - 已有抽数，且不能为负数
+              this.requiredPullsFor95Percent.remaining_pulls = Math.max(
+                0, 
+                this.requiredPullsFor95Percent.required_pulls - this.result.resources
+              )
+              
+              // 计算保底仍需金额范围 = 保底仍需抽数 * 12.84 到 保底仍需抽数 * 14.55
+              this.requiredPullsFor95Percent.remaining_amount_min = 
+                this.requiredPullsFor95Percent.remaining_pulls * 12.84
+              this.requiredPullsFor95Percent.remaining_amount_max = 
+                this.requiredPullsFor95Percent.remaining_pulls * 14.55
+            }
+          } else {
+            // 如果用户不选择计算，则清空之前的结果
+            this.requiredPullsFor95Percent = null
+          }
         })
         .catch((error) => {
           console.error('计算失败:', error)
           this.errorMessage =
             (error.response && error.response.data && error.response.data.error) ||
-            '计算失败，请稍后重试。'
+            '计算失败，请检查输入参数是否正确'
         })
         .finally(() => {
           this.isLoading = false
@@ -313,7 +397,23 @@ export default {
         return '先武器后角色'
       }
       return s
+    },
+    scrollToTop() {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      })
+    },
+    handleScroll() {
+      // 简化判断，只要滚动了就显示按钮
+      this.showBackToTop = window.scrollY > 100
     }
+  },
+  mounted() {
+    window.addEventListener('scroll', this.handleScroll)
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll)
   }
 }
 </script>
@@ -439,6 +539,36 @@ h1 {
   margin-top: 4px;
 }
 
+.checkbox-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.checkbox-group label {
+  font-size: 14px;
+  color: #4a5568;
+  cursor: pointer;
+  margin: 0;
+  flex-shrink: 1;
+  white-space: normal;
+  word-wrap: break-word;
+  line-height: 1.3;
+  flex: 1;
+}
+
 .toggle-row {
   margin: 4px 0 6px;
 }
@@ -541,6 +671,7 @@ h1 {
 
 .probability-section {
   margin-bottom: 18px;
+  margin-top: 24px;
 }
 
 .probability-section h3 {
@@ -643,5 +774,39 @@ h1 {
     align-self: stretch;
     justify-content: flex-end;
   }
+}
+
+/* 返回顶部按钮样式 */
+.back-to-top {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(148, 163, 184, 0.4);
+  transition: all 0.3s ease;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.back-to-top:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(148, 163, 184, 0.5);
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  color: #475569;
+}
+
+.back-to-top:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(148, 163, 184, 0.3);
 }
 </style>

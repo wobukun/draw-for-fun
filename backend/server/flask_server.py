@@ -291,6 +291,38 @@ class GachaServer:
             app.logger.error(f"Error shutting down server: {e}")
             return jsonify({'error': str(e)}), 500
     
+    def handle_required_pulls_for_95_percent(self):
+        """处理95%概率所需抽数的请求"""
+        try:
+            data = request.json
+            
+            # 获取参数
+            character_target_constellation = int(data.get('character_target_constellation', 0))
+            weapon_target_refinement = int(data.get('weapon_target_refinement', 0))
+            strategy = str(data.get('strategy', 'character_then_weapon')).lower()
+            
+            # 验证策略
+            if strategy not in ('character_then_weapon', 'weapon_then_character'):
+                return jsonify({'error': f'Unknown strategy: {strategy}'}), 400
+            
+            # 计算所需抽数
+            result = goal_probability.calculate_required_pulls_for_95_percent_probability(
+                character_target_constellation=character_target_constellation,
+                weapon_target_refinement=weapon_target_refinement,
+                strategy=strategy,
+                draw_character_module=draw_character,
+                draw_weapon_module=draw_weapon,
+            )
+            
+            return jsonify(result)
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            app.logger.error(f"Error handling required pulls request: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': str(e)}), 500
+    
     def index(self):
         """根路径"""
         return '''
@@ -499,6 +531,10 @@ def handle_gacha():
 @app.route('/api/goal_probability', methods=['POST'])
 def handle_goal_probability():
     return server.handle_goal_probability()
+
+@app.route('/api/required_pulls_for_95_percent', methods=['POST'])
+def handle_required_pulls_for_95_percent():
+    return server.handle_required_pulls_for_95_percent()
 
 @app.route('/api/shutdown', methods=['POST'])
 def shutdown():
