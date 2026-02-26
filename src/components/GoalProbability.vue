@@ -101,7 +101,16 @@
             </p>
           </div>
 
-          <div class="form-group checkbox-group">
+          <div class="form-group checkbox-group full-width">
+            <input
+              type="checkbox"
+              id="calculateExpectedPulls"
+              v-model="form.calculateExpectedPulls"
+            >
+            <label for="calculateExpectedPulls">同时计算：达成目标所需总抽数（期望）</label>
+          </div>
+          
+          <div class="form-group checkbox-group full-width">
             <input
               type="checkbox"
               id="calculateRequiredPulls"
@@ -118,7 +127,7 @@
             @click="calculate"
           >
             <span v-if="!isLoading">
-              <span v-if="form.calculateRequiredPulls">开始计算（包含保底抽数计算，时间较长）</span>
+              <span v-if="form.calculateRequiredPulls || form.calculateExpectedPulls">开始计算（包含额外抽数计算，时间较长）</span>
               <span v-else>开始计算</span>
             </span>
             <span v-else>计算中，请稍候...</span>
@@ -177,6 +186,33 @@
           </div>
         </div>
 
+        <div v-if="requiredPullsFor50Percent" class="probability-section">
+          <h3>达成目标所需总抽数（期望，按50%概率分位计算）：</h3>
+          <div class="probability-main">
+            <div class="probability-value">
+              {{ requiredPullsFor50Percent.required_pulls }}
+            </div>
+            <div class="probability-detail">
+              达成目标概率达到50%时所需总抽数
+            </div>
+            <div class="probability-detail secondary">
+              目标：角色 {{ requiredPullsFor50Percent.character_target_constellation }} 命，武器 {{ requiredPullsFor50Percent.weapon_target_refinement }} 精
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="requiredPullsFor50Percent" class="probability-section">
+          <h3>期望仍需抽数</h3>
+          <div class="probability-main">
+            <div class="probability-value">
+              {{ requiredPullsFor50Percent.remaining_pulls }}
+            </div>
+            <div class="probability-detail">
+              期望仍需金额（粗略估计）：¥{{ requiredPullsFor50Percent.remaining_amount_min.toFixed(2) }} ~ ¥{{ requiredPullsFor50Percent.remaining_amount_max.toFixed(2) }}
+            </div>
+          </div>
+        </div>
+        
         <div v-if="requiredPullsFor95Percent" class="probability-section">
           <h3>达成目标所需总抽数（保底，按95%概率分位计算）：</h3>
           <div class="probability-main">
@@ -191,7 +227,7 @@
             </div>
           </div>
         </div>
-
+        
         <div v-if="requiredPullsFor95Percent" class="probability-section">
           <h3>保底仍需抽数</h3>
           <div class="probability-main">
@@ -233,12 +269,14 @@ export default {
         trials: 5000,
         includeCharacter: true,
         includeWeapon: true,
-        calculateRequiredPulls: false
+        calculateRequiredPulls: false,
+        calculateExpectedPulls: false
       },
       isLoading: false,
       errorMessage: '',
       result: null,
       requiredPullsFor95Percent: null,
+      requiredPullsFor50Percent: null,
       showBackToTop: false
     }
   },
@@ -338,6 +376,16 @@ export default {
         axios.post('/api/goal_probability', payload)
       ]
       
+      // 根据用户选择决定是否添加50%概率所需抽数（期望）的计算
+      if (this.form.calculateExpectedPulls) {
+        const expectedPullsPayload = {
+          character_target_constellation: this.form.includeCharacter ? this.form.targetCharacterConstellation : 0,
+          weapon_target_refinement: this.form.includeWeapon ? this.form.targetWeaponRefinement : 0,
+          strategy: "character_then_weapon"
+        }
+        apiCalls.push(axios.post('/api/required_pulls_for_50_percent', expectedPullsPayload))
+      }
+      
       // 根据用户选择决定是否添加95%概率所需抽数的计算
       if (this.form.calculateRequiredPulls) {
         const requiredPullsPayload = {
@@ -356,9 +404,36 @@ export default {
             this.result = responses[0].data
           }
           
-          // 处理第二个响应（95%概率所需抽数）
-          if (responses[1]) {
-            this.requiredPullsFor95Percent = responses[1].data
+          // 处理后续响应
+          let responseIndex = 1
+          
+          // 处理50%概率所需抽数（期望）
+          if (this.form.calculateExpectedPulls && responses[responseIndex]) {
+            this.requiredPullsFor50Percent = responses[responseIndex].data
+            
+            // 计算期望仍需抽数和期望仍需金额
+            if (this.requiredPullsFor50Percent && this.result) {
+              // 计算期望仍需抽数 = 期望达成目标所需抽数 - 已有抽数，且不能为负数
+              this.requiredPullsFor50Percent.remaining_pulls = Math.max(
+                0, 
+                this.requiredPullsFor50Percent.required_pulls - this.result.resources
+              )
+              
+              // 计算期望仍需金额范围 = 期望仍需抽数 * 12.84 到 期望仍需抽数 * 14.55
+              this.requiredPullsFor50Percent.remaining_amount_min = 
+                this.requiredPullsFor50Percent.remaining_pulls * 12.84
+              this.requiredPullsFor50Percent.remaining_amount_max = 
+                this.requiredPullsFor50Percent.remaining_pulls * 14.55
+            }
+            responseIndex++
+          } else {
+            // 如果用户不选择计算，则清空之前的结果
+            this.requiredPullsFor50Percent = null
+          }
+          
+          // 处理95%概率所需抽数
+          if (this.form.calculateRequiredPulls && responses[responseIndex]) {
+            this.requiredPullsFor95Percent = responses[responseIndex].data
             
             // 计算保底仍需抽数和保底仍需金额
             if (this.requiredPullsFor95Percent && this.result) {
@@ -493,6 +568,10 @@ h1 {
   display: flex;
   flex-direction: column;
   margin-bottom: 20px;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
 }
 
 .form-group label {
@@ -671,7 +750,7 @@ h1 {
 
 .probability-section {
   margin-bottom: 18px;
-  margin-top: 24px;
+  margin-top: 12px;
 }
 
 .probability-section h3 {

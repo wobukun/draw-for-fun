@@ -467,111 +467,115 @@ class GoalProbabilityCalculator:
             "weapon_target_copies": weapon_target_copies,
             "final_probability": final_result["probability"],
         }
+    
+    def calculate_required_pulls_for_50_percent_probability(
+        self,
+        *,
+        character_target_constellation: int,
+        weapon_target_refinement: int,
+        strategy: Strategy,
+        seed: int | None = None,
+        start: StartState | None = None,
+        draw_character_module = None,
+        draw_weapon_module = None,
+    ) -> dict:
+        """计算达成目标概率达到50%时的所需抽数（期望）
 
+        Args:
+            character_target_constellation: 目标角色命之座层数（0-6）
+            weapon_target_refinement: 目标武器精炼等级（1-5，0表示不抽武器）
+            strategy: 抽取策略
+            seed: 随机种子
+            start: 起始状态
+            draw_character_module: 角色抽卡模块
+            draw_weapon_module: 武器抽卡模块
 
-# ===== 向后兼容的模块级封装函数 =====
+        Returns:
+            dict: 包含所需抽数和相关信息的字典
+        """
+        # 导入必要的模块
+        if draw_character_module is None:
+            import backend.gacha.draw_character as draw_character_module
+        if draw_weapon_module is None:
+            import backend.gacha.draw_weapon as draw_weapon_module
+        if start is None:
+            start = StartState()
 
-def constellation_to_copies(constellation: int) -> int:
-    """兼容旧接口，内部委托给 GoalProbabilityCalculator
+        # 转换目标为拷贝数
+        character_target_copies = self.constellation_to_copies(character_target_constellation)
+        weapon_target_copies = self.refinement_to_copies(weapon_target_refinement)
 
-    Args:
-        constellation: 命之座层数
+        # 快速路径：如果不需要抽角色或武器，直接返回0抽
+        if character_target_copies == 0 and weapon_target_copies == 0:
+            return {
+                "strategy": strategy,
+                "required_pulls": 0,
+                "character_target_constellation": character_target_constellation,
+                "weapon_target_refinement": weapon_target_refinement,
+                "character_target_copies": character_target_copies,
+                "weapon_target_copies": weapon_target_copies,
+            }
 
-    Returns:
-        int: 需要的UP角色数量
-    """
-    return GoalProbabilityCalculator.constellation_to_copies(constellation)
+        # 计算最大可能的抽数（100%概率）
+        max_pulls = (character_target_copies * 180) + (weapon_target_copies * 160)
+        
+        # 二分查找范围，确保覆盖所有可能的情况
+        low = character_target_copies + weapon_target_copies  # 最小可能的抽数
+        high = max_pulls  # 最大可能的抽数，使用与100%概率相同的上限
 
+        # 初始化结果
+        required_pulls = high
 
-def refinement_to_copies(refinement: int) -> int:
-    """兼容旧接口，内部委托给 GoalProbabilityCalculator
+        # 二分查找
+        while low <= high:
+            mid = (low + high) // 2
+            
+            # 计算当前抽数下的概率
+            # 早期迭代使用较少的模拟次数，加快搜索速度
+            # 后期迭代使用更多的模拟次数，提高精度
+            trials = 1000 if abs(mid - (low + high) // 2) > 30 else 5000
+            
+            result = self.estimate_goal_probability(
+                pulls=mid,
+                character_target_copies=character_target_copies,
+                weapon_target_copies=weapon_target_copies,
+                trials=trials,
+                strategy=strategy,
+                seed=seed,
+                start=start,
+                draw_character_module=draw_character_module,
+                draw_weapon_module=draw_weapon_module,
+            )
+            
+            probability = result["probability"]
+            
+            if probability >= 0.5:
+                # 找到一个可行的抽数，尝试找更小的
+                required_pulls = mid
+                high = mid - 1
+            else:
+                # 概率不够，需要更多抽数
+                low = mid + 1
 
-    Args:
-        refinement: 精炼层数
+        # 验证最终结果，使用较多的模拟次数确保精度
+        final_result = self.estimate_goal_probability(
+            pulls=required_pulls,
+            character_target_copies=character_target_copies,
+            weapon_target_copies=weapon_target_copies,
+            trials=5000,
+            strategy=strategy,
+            seed=seed,
+            start=start,
+            draw_character_module=draw_character_module,
+            draw_weapon_module=draw_weapon_module,
+        )
 
-    Returns:
-        int: 需要的定轨武器数量
-    """
-    return GoalProbabilityCalculator.refinement_to_copies(refinement)
-
-
-def estimate_goal_probability(
-    *,
-    pulls: int,
-    character_target_copies: int,
-    weapon_target_copies: int,
-    trials: int,
-    strategy: Strategy,
-    seed: int | None,
-    start: StartState,
-    draw_character_module,
-    draw_weapon_module,
-    max_total_draws: int = 3_000_000,
-) -> dict:
-    """兼容旧接口的函数形式入口，实际由 GoalProbabilityCalculator 实例完成计算。
-
-    Args:
-        pulls: 总抽数
-        character_target_copies: 目标角色拷贝数
-        weapon_target_copies: 目标武器拷贝数
-        trials: 试验次数
-        strategy: 抽取策略
-        seed: 随机种子
-        start: 起始状态
-        draw_character_module: 角色抽卡模块
-        draw_weapon_module: 武器抽卡模块
-        max_total_draws: 最大总抽数限制
-
-    Returns:
-        dict: 包含概率估算结果的字典
-    """
-    calculator = GoalProbabilityCalculator(max_total_draws=max_total_draws)
-    return calculator.estimate_goal_probability(
-        pulls=pulls,
-        character_target_copies=character_target_copies,
-        weapon_target_copies=weapon_target_copies,
-        trials=trials,
-        strategy=strategy,
-        seed=seed,
-        start=start,
-        draw_character_module=draw_character_module,
-        draw_weapon_module=draw_weapon_module,
-    )
-
-
-def calculate_required_pulls_for_95_percent_probability(
-    *,
-    character_target_constellation: int,
-    weapon_target_refinement: int,
-    strategy: Strategy,
-    seed: int | None = None,
-    start: StartState | None = None,
-    draw_character_module = None,
-    draw_weapon_module = None,
-    max_total_draws: int = 3_000_000,
-) -> dict:
-    """兼容旧接口的函数形式入口，计算达成目标概率达到95%时的所需抽数。
-
-    Args:
-        character_target_constellation: 目标角色命之座层数（0-6）
-        weapon_target_refinement: 目标武器精炼等级（1-5，0表示不抽武器）
-        strategy: 抽取策略
-        seed: 随机种子
-        start: 起始状态
-        draw_character_module: 角色抽卡模块
-        draw_weapon_module: 武器抽卡模块
-        max_total_draws: 最大总抽数限制
-
-    Returns:
-        dict: 包含所需抽数和相关信息的字典
-    """
-    calculator = GoalProbabilityCalculator(max_total_draws=max_total_draws)
-    return calculator.calculate_required_pulls_for_95_percent_probability(
-        character_target_constellation=character_target_constellation,
-        weapon_target_refinement=weapon_target_refinement,
-        strategy=strategy,
-        seed=seed,
-        start=start,
-        draw_character_module=draw_character_module,
-        draw_weapon_module=draw_weapon_module,
-    )
+        return {
+            "strategy": strategy,
+            "required_pulls": required_pulls,
+            "character_target_constellation": character_target_constellation,
+            "weapon_target_refinement": weapon_target_refinement,
+            "character_target_copies": character_target_copies,
+            "weapon_target_copies": weapon_target_copies,
+            "final_probability": final_result["probability"],
+        }
