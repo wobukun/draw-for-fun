@@ -1,7 +1,7 @@
 <template>
   <div class="weapon-gacha">
     <div class="content-container">
-      <h1>武器抽卡模拟</h1>
+      <h1>武器活动祈愿</h1>
       <div class="gacha-buttons">
         <button @click="startGacha" class="gacha-button start-button">开始</button>
         <button @click="showAutoSimulation" class="gacha-button auto-button">自动模拟</button>

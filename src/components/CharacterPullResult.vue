@@ -12,7 +12,7 @@
         <button @click="resetGacha" class="action-button small-action-button">重置</button>
       </div>
       
-      <h1>角色抽卡结果</h1>
+      <h1>角色活动祈愿结果</h1>
       
       <div class="main-content">
         <!-- 左侧：历史记录 -->

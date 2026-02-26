@@ -7,7 +7,7 @@
         <button @click="goToMainMenu" class="action-button small-action-button">主菜单</button>
       </div>
       
-      <h1>角色抽取结果（自动模拟）</h1>
+      <h1>角色活动祈愿结果（自动模拟）</h1>
       
       <div class="result-container">
         <!-- 基本统计信息 -->
@@ -29,6 +29,10 @@
             <div class="stat-item">
               <div class="stat-label">常驻角色数量</div>
               <div class="stat-value">{{ result.avg_count }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">捕获明光触发次数</div>
+              <div class="stat-value success">{{ result.capture_minguang_count || 0 }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">5★概率</div>

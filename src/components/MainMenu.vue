@@ -2,8 +2,8 @@
   <div class="main-menu">
     <h1>欢迎使用，Let's start！</h1>
     <div class="menu-container">
-      <button @click="goToCharacterGacha" class="menu-button start-button">角色抽卡模拟</button>
-      <button @click="goToWeaponGacha" class="menu-button weapon-button">武器抽卡模拟</button>
+      <button @click="goToCharacterGacha" class="menu-button start-button">角色活动祈愿</button>
+      <button @click="goToWeaponGacha" class="menu-button weapon-button">武器活动祈愿</button>
       <button @click="goToGoalProbability" class="menu-button probability-button">抽取概率计算（Beta）</button>
       <button @click="goToHelpPage" class="menu-button help-button">查看帮助</button>
       <button @click="exitApp" class="menu-button exit-button">退出</button>
@@ -18,7 +18,7 @@ export default {
   data() {
     return {
       // 版本号，可在此处方便修改
-      version: '0.2.3'
+      version: '0.3.0'
     }
   },
   methods: {

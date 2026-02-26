@@ -7,7 +7,7 @@
         <button @click="goToMainMenu" class="action-button small-action-button">主菜单</button>
       </div>
       
-      <h1>武器抽取结果（自动模拟）</h1>
+      <h1>武器活动祈愿结果（自动模拟）</h1>
       
       <div class="result-container">
         <!-- 基本统计信息 -->
