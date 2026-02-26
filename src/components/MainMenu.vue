@@ -18,7 +18,7 @@ export default {
   data() {
     return {
       // 版本号，可在此处方便修改
-      version: '0.3.1'
+      version: '0.3.2'
     }
   },
   methods: {
@@ -29,7 +29,7 @@ export default {
       this.$router.push('/weapon')
     },
     goToGoalProbability() {
-      this.$router.push('/goal-probability')
+      this.$router.push('/goal-probability-intro')
     },
     goToHelpPage() {
       this.$router.push('/help')

@@ -76,6 +76,7 @@ class GachaServer:
                 up_count = data.get('up_count', 0)
                 guarantee_up = data.get('guarantee_up', False)
                 total_pulls = data.get('total_pulls', 0)
+                migu_counter = data.get('migu_counter', 0)
                 
                 # 创建新的模拟器实例，使用请求中的抽卡进度参数
                 sim = CharacterGachaSimulator()
@@ -85,6 +86,7 @@ class GachaServer:
                 sim.up_count = up_count
                 sim.guarantee_up = guarantee_up
                 sim.total_pulls = total_pulls
+                sim.migu_counter = migu_counter
                 
                 if action == 'one':
                     # 角色单抽
@@ -452,7 +454,8 @@ class GachaServer:
                 'avg_count': result['avg_count'],
                 'up_count': result['up_count'],
                 'guarantee_up': result['guarantee_up'],
-                'capture_minguang': capture_minguang
+                'capture_minguang': capture_minguang,
+                'migu_counter': result.get('migu_counter', 0)
             }
         return jsonify(response_data)
     
@@ -465,7 +468,8 @@ class GachaServer:
             'up_pity': result['up_pity'],
             'avg_count': result['avg_count'],
             'up_count': result['up_count'],
-            'guarantee_up': result['guarantee_up']
+            'guarantee_up': result['guarantee_up'],
+            'migu_counter': result.get('migu_counter', 0)
         }
         if len(result['results']) == len(result['is_up']) == len(result['used_probs']) and len(result['capture_minguang']) == len(result['results']):
             for i, (is_5star, is_up, prob, capture_minguang) in enumerate(zip(result['results'], result['is_up'], result['used_probs'], result['capture_minguang'])):

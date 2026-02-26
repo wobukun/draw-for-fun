@@ -11,6 +11,7 @@ import CharacterSimulationResult from './components/CharacterSimulationResult.vu
 import WeaponSimulationResult from './components/WeaponSimulationResult.vue'
 import HelpPage from './components/HelpPage.vue'
 import GoalProbability from './components/GoalProbability.vue'
+import GoalProbabilityIntro from './components/GoalProbabilityIntro.vue'
 
 const routes = [
   {
@@ -57,6 +58,11 @@ const routes = [
     path: '/help',
     name: 'HelpPage',
     component: HelpPage
+  },
+  {
+    path: '/goal-probability-intro',
+    name: 'GoalProbabilityIntro',
+    component: GoalProbabilityIntro
   },
   {
     path: '/goal-probability',

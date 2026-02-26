@@ -25,7 +25,7 @@
               <div class="history-name"></div>
               <div class="history-type" v-if="item.star === 5">
                 {{ item.name.includes('常驻') ? '常驻角色' : item.name.includes('UP') ? 'UP角色' : '' }}
-                <span v-if="item.capture_minguang" class="capture-minguang-tag">捕获明光</span>
+                <span v-if="item.capture_minguang" class="capture-minguang-tag-inline">捕获明光</span>
               </div>
             </div>
           </div>
@@ -37,12 +37,14 @@
           <div class="pull-results">
             <h2>本次抽卡结果</h2>
             <div class="results-container">
-              <div v-for="(item, index) in displayResults" :key="index" class="result-item" :class="[`star-${item.star}`, { 'appear-animation': showRefreshAnimation }]">
-                <div class="result-star">{{ item.star === 5 ? item.star : '3/4' }}★</div>
-                <div class="result-name">
-                  {{ item.star === 5 ? (item.name.includes('常驻') ? '常驻' : item.name.includes('UP') ? 'UP' : item.name) : '' }}
-                  <span v-if="item.capture_minguang" class="capture-minguang-tag">捕获明光</span>
+              <div v-for="(item, index) in displayResults" :key="index" class="result-wrapper" :class="{ 'capture-minguang-wrapper': item.capture_minguang }">
+                <div class="result-item" :class="[`star-${item.star}`, { 'appear-animation': showRefreshAnimation, 'capture-minguang-card': item.capture_minguang }]">
+                  <div class="result-star">{{ item.star === 5 ? item.star : '3/4' }}★</div>
+                  <div class="result-name">
+                    {{ item.star === 5 ? (item.name.includes('常驻') ? '常驻' : item.name.includes('UP') ? 'UP' : item.name) : '' }}
+                  </div>
                 </div>
+                <span v-if="item.capture_minguang" class="capture-minguang-tag">捕获明光</span>
               </div>
             </div>
           </div>
@@ -64,16 +66,20 @@
                 <div class="stat-value">{{ result.up_pity }}</div>
               </div>
               <div class="stat-item">
-                <div class="stat-label">常驻角色数</div>
+                <div class="stat-label">常驻5星角色数</div>
                 <div class="stat-value">{{ result.avg_count }}</div>
               </div>
               <div class="stat-item">
-                <div class="stat-label">UP角色数</div>
+                <div class="stat-label">UP5星角色数</div>
                 <div class="stat-value success">{{ result.up_count }}</div>
               </div>
               <div class="stat-item">
                 <div class="stat-label">下次必UP</div>
                 <div class="stat-value">{{ result.guarantee_up ? '是' : '否' }}</div>
+              </div>
+              <div class="stat-item" style="display: none;">
+                <div class="stat-label">捕获明光计数器</div>
+                <div class="stat-value">{{ result.migu_counter || 0 }}</div>
               </div>
             </div>
           </div>
@@ -81,6 +87,9 @@
           <!-- 继续抽卡按钮 -->
           <div class="continue-buttons">
             <div class="button-group">
+              <button @click="setMiguCounterTo3" class="action-button set-migu-button" :disabled="isLoading" style="display: none;">
+                设置捕获明光计数器为3
+              </button>
               <button @click="performSinglePull" class="action-button single-pull" :disabled="isLoading">
                 {{ isLoading ? '抽卡中...' : '单抽' }}
               </button>
@@ -108,7 +117,8 @@ export default {
         up_pity: 0,
         avg_count: 0,
         up_count: 0,
-        guarantee_up: false
+        guarantee_up: false,
+        migu_counter: 0
       },
       isLoading: false,
       showRefreshAnimation: false,
@@ -161,7 +171,8 @@ export default {
             avg_count: this.result.avg_count || 0,
             up_count: this.result.up_count || 0,
             guarantee_up: this.result.guarantee_up || false,
-            total_pulls: this.result.total_pulls || 0
+            total_pulls: this.result.total_pulls || 0,
+            migu_counter: this.result.migu_counter || 0
           }),
           new Promise(resolve => setTimeout(resolve, delay))
         ])
@@ -204,7 +215,8 @@ export default {
             avg_count: this.result.avg_count || 0,
             up_count: this.result.up_count || 0,
             guarantee_up: this.result.guarantee_up || false,
-            total_pulls: this.result.total_pulls || 0
+            total_pulls: this.result.total_pulls || 0,
+            migu_counter: this.result.migu_counter || 0
           }),
           new Promise(resolve => setTimeout(resolve, delay))
         ])
@@ -244,7 +256,8 @@ export default {
         up_pity: 0,
         avg_count: 0,
         up_count: 0,
-        guarantee_up: false
+        guarantee_up: false,
+        migu_counter: 0
       }
       // 清空抽卡历史
       this.pullHistory = []
@@ -266,6 +279,9 @@ export default {
       if (this.pullHistory.length > 100) {
         this.pullHistory = this.pullHistory.slice(0, 100)
       }
+    },
+    setMiguCounterTo3() {
+      this.result.migu_counter = 3
     }
   }
 }
@@ -286,24 +302,14 @@ export default {
   overflow: hidden;
 }
 
-.capture-minguang-tag {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 8px;
-  background-color: #ffb6c1;
-  color: white;
-  font-size: 12px;
-  border-radius: 10px;
-  font-weight: bold;
-  animation: glow 1.5s ease-in-out infinite alternate;
-}
+
 
 @keyframes glow {
   from {
-    box-shadow: 0 0 5px #ffb6c1, 0 0 10px #ffb6c1;
+    box-shadow: 0 0 5px #ff6b81, 0 0 10px #ff6b81;
   }
   to {
-    box-shadow: 0 0 10px #ffb6c1, 0 0 20px #ffb6c1, 0 0 30px #ffb6c1;
+    box-shadow: 0 0 10px #ff6b81, 0 0 20px #ff6b81, 0 0 30px #ff6b81;
   }
 }
 
@@ -625,7 +631,7 @@ h1 {
   box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.05);
   border: 1px solid #e2e8f0;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .results-container::before {
@@ -676,6 +682,17 @@ h1 {
 }
 
 /* 结果卡片样式 */
+.result-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 100px;
+  height: 180px;
+  overflow: visible;
+}
+
 .result-item {
   background: white;
   border-radius: 12px;
@@ -696,6 +713,58 @@ h1 {
   backdrop-filter: blur(10px);
   cursor: pointer;
   box-sizing: border-box;
+}
+
+.result-item.capture-minguang-card {
+  background: #ffb6c1;
+  border-color: #ff6b81;
+  box-shadow: 0 8px 25px rgba(255, 107, 129, 0.3);
+}
+
+.result-item.capture-minguang-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #ff6b81, #ff8fab, #ff6b81);
+  animation: shine 3s ease-in-out infinite;
+}
+
+.capture-minguang-tag {
+  display: inline-block;
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: -20px;
+  padding: 4px 12px;
+  font-size: 14px;
+  font-weight: bold;
+  white-space: nowrap;
+  z-index: 2;
+  /* 文字渐变效果 */
+  background: linear-gradient(135deg, #ff6b81 0%, #ff8fab 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 5px rgba(255, 107, 129, 0.5);
+}
+
+.capture-minguang-tag-inline {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+  /* 文字渐变效果 */
+  background: linear-gradient(135deg, #ff6b81 0%, #ff8fab 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 3px rgba(255, 107, 129, 0.5);
 }
 
 .result-item:hover {
@@ -1011,6 +1080,19 @@ h1 {
 }
 
 .action-button.ten-pull:hover {
+  background: linear-gradient(135deg, #fef3c7 0%, #ffffff 100%);
+  box-shadow: 0 8px 20px rgba(252, 211, 77, 0.3);
+  border-color: #fbbf24;
+}
+
+.action-button.set-migu-button {
+  background: linear-gradient(135deg, #ffffff 0%, #fef3c7 100%);
+  color: #2d3748;
+  border-color: #fcd34d;
+  box-shadow: 0 4px 12px rgba(252, 211, 77, 0.2);
+}
+
+.action-button.set-migu-button:hover {
   background: linear-gradient(135deg, #fef3c7 0%, #ffffff 100%);
   box-shadow: 0 8px 20px rgba(252, 211, 77, 0.3);
   border-color: #fbbf24;

@@ -168,10 +168,12 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  margin: 120px 0 40px;
+  margin: 0 auto;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   position: relative;
+  min-height: 60vh;
 }
 
 .gacha-button {

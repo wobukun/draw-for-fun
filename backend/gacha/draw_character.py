@@ -105,8 +105,8 @@ class CharacterGachaSimulator:
                 self.up_count += 1
                 self.capture_minguang_count += 1  # 增加捕获明光触发次数
                 self.guarantee_capture_minguang = False
-                self.guarantee_up = False
                 self.migu_counter = 0
+                self.guarantee_up = False
             else:
                 # 检查是否触发大保底
                 if self.guarantee_up:
@@ -123,8 +123,9 @@ class CharacterGachaSimulator:
                         is_up = True
                         self.up_count += 1
                         self.capture_minguang_count += 1  # 增加捕获明光触发次数
-                        self.guarantee_up = False
+                        self.guarantee_capture_minguang = False
                         self.migu_counter = 0
+                        self.guarantee_up = False
                     else:
                         # 小保底：50% 概率 UP，50% 概率常驻
                         is_up = self.rng.random() < 0.5
@@ -321,8 +322,8 @@ class CharacterGachaSimulator:
                     current_capture_minguang_count += 1  # 增加捕获明光触发次数
                     up_positions.append(pull_num)
                     current_capture_minguang_guarantee = False
-                    current_guarantee = False
                     current_migu_counter = 0
+                    current_guarantee = False
                 else:
                     # 检查是否触发大保底
                     if current_guarantee:
@@ -341,8 +342,9 @@ class CharacterGachaSimulator:
                             current_up_count += 1
                             current_capture_minguang_count += 1  # 增加捕获明光触发次数
                             up_positions.append(pull_num)
-                            current_guarantee = False
+                            current_capture_minguang_guarantee = False
                             current_migu_counter = 0
+                            current_guarantee = False
                         else:
                             # 小保底：50% 概率 UP，50% 概率常驻
                             is_up = rs.random() < 0.5

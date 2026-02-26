@@ -2,8 +2,9 @@
   <div class="goal-probability">
     <div class="content-container">
       <div class="header">
-        <h1>抽取概率计算（Beta）</h1>
+        <h1>抽取概率计算（角色/武器活动祈愿）（Beta）</h1>
         <div class="header-actions">
+          <button class="header-button" @click="goBackToPrevious">返回</button>
           <button class="header-button" @click="goBack">返回主菜单</button>
         </div>
       </div>
@@ -50,9 +51,6 @@
           </div>
 
           <div class="form-group">
-            <label for="character-constellation">
-              目标角色命之座层数（UP 角色）
-            </label>
             <div class="toggle-row">
               <label class="toggle-label">
                 <input
@@ -62,6 +60,9 @@
                 <span>本次抽取角色</span>
               </label>
             </div>
+            <label for="character-constellation">
+              目标角色<span style="color: #e8b4b8;">命之座层数</span>（UP 角色）
+            </label>
             <input
               id="character-constellation"
               type="number"
@@ -76,9 +77,6 @@
           </div>
 
           <div class="form-group">
-            <label for="weapon-refinement">
-              目标武器精炼等级（定轨武器）
-            </label>
             <div class="toggle-row">
               <label class="toggle-label">
                 <input
@@ -88,6 +86,9 @@
                 <span>本次抽取武器</span>
               </label>
             </div>
+            <label for="weapon-refinement">
+              目标武器<span style="color: #e8b4b8;">精炼等级</span>（定轨武器）
+            </label>
             <input
               id="weapon-refinement"
               type="number"
@@ -291,6 +292,9 @@ export default {
   methods: {
     goBack() {
       this.$router.push('/')
+    },
+    goBackToPrevious() {
+      this.$router.back()
     },
     validateForm() {
       // 验证纠缠之缘数范围
@@ -623,7 +627,7 @@ h1 {
   flex-direction: row;
   align-items: center;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 8px;
   flex-wrap: nowrap;
   width: 100%;
 }
@@ -649,7 +653,7 @@ h1 {
 }
 
 .toggle-row {
-  margin: 4px 0 6px;
+  margin: 12px 0 6px;
 }
 
 .toggle-label {
