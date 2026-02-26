@@ -101,46 +101,50 @@ class WeaponGachaSimulator:
         is_fate = False
 
         if success:
-            # 判定是否为 UP 武器
-            if self.guarantee_up:
-                is_up = True
-                self.guarantee_up = False
-                self.up_count += 1
-            else:
-                is_up = self.rng.random() < 0.75
-                if is_up:
-                    self.up_count += 1
-                else:
-                    self.avg_count += 1
-                    self.guarantee_up = True
-
-            # 判定是否为定轨武器
+            # 先判断命定值是否为1
             if self.is_fate_guaranteed:
                 # 命定值为1，必定获得定轨武器
                 is_fate = True
+                is_up = True  # 定轨武器一定是UP武器
                 self.is_fate_guaranteed = False
                 self.fate_point = 0
                 self.fate_count += 1
+                self.up_count += 1
                 # 抽到定轨武器后，大保底也清零
                 self.guarantee_up = False
-            elif is_up:
-                # 是UP武器，50%概率为定轨武器
-                is_fate = self.rng.random() < 0.5
-                if not is_fate:
+            else:
+                # 判定是否为 UP 武器
+                if self.guarantee_up:
+                    is_up = True
+                    self.guarantee_up = False
+                    self.up_count += 1
+                else:
+                    is_up = self.rng.random() < 0.75
+                    if is_up:
+                        self.up_count += 1
+                    else:
+                        self.avg_count += 1
+                        self.guarantee_up = True
+
+                # 判定是否为定轨武器
+                if is_up:
+                    # 是UP武器，50%概率为定轨武器
+                    is_fate = self.rng.random() < 0.5
+                    if not is_fate:
+                        self.fate_point = min(1, self.fate_point + 1)
+                        if self.fate_point == 1:
+                            self.is_fate_guaranteed = True
+                    else:
+                        self.fate_point = 0
+                        self.fate_count += 1
+                        # 抽到定轨武器后，大保底也清零
+                        self.guarantee_up = False
+                else:
+                    # 非UP武器，不是定轨武器，增加命定值
+                    is_fate = False
                     self.fate_point = min(1, self.fate_point + 1)
                     if self.fate_point == 1:
                         self.is_fate_guaranteed = True
-                else:
-                    self.fate_point = 0
-                    self.fate_count += 1
-                    # 抽到定轨武器后，大保底也清零
-                    self.guarantee_up = False
-            else:
-                # 非UP武器，不是定轨武器，增加命定值
-                is_fate = False
-                self.fate_point = min(1, self.fate_point + 1)
-                if self.fate_point == 1:
-                    self.is_fate_guaranteed = True
 
             # 命中后重置 pity
             self.pity = 0
@@ -305,53 +309,58 @@ class WeaponGachaSimulator:
                     cost = pull_num - last_hit_position
                 last_hit_position = pull_num
                 
-                # 判定是否为 UP：若 guarantee 为 True 则必为 UP，否则 75% 概率为 UP
-                if current_guarantee:
-                    is_up = True
-                    current_up_count += 1
-                    up_positions.append(pull_num)
-                    current_guarantee = False  # 重置guarantee
-                else:
-                    is_up = rs.random() < 0.75
-                    if is_up:
-                        current_up_count += 1
-                        up_positions.append(pull_num)
-                        current_guarantee = False  # 重置guarantee
-                    else:
-                        current_avg_count += 1
-                        avg_positions.append(pull_num)
-                        current_guarantee = True  # 下次必UP
-                
-                # 判定是否为定轨武器
+                # 先判断命定值是否为1
                 is_fate = False
                 if current_is_fate_guaranteed:
                     # 命定值为1，必定获得定轨武器
                     is_fate = True
+                    is_up = True  # 定轨武器一定是UP武器
                     current_is_fate_guaranteed = False
                     current_fate_point = 0
                     current_fate_count += 1
+                    current_up_count += 1
+                    up_positions.append(pull_num)
                     fate_positions.append(pull_num)
                     # 抽到定轨武器后，大保底也清零
                     current_guarantee = False
-                elif is_up:
-                    # 是UP武器，50%概率为定轨武器
-                    is_fate = rs.random() < 0.5
-                    if not is_fate:
+                else:
+                    # 判定是否为 UP：若 guarantee 为 True 则必为 UP，否则 75% 概率为 UP
+                    if current_guarantee:
+                        is_up = True
+                        current_up_count += 1
+                        up_positions.append(pull_num)
+                        current_guarantee = False  # 重置guarantee
+                    else:
+                        is_up = rs.random() < 0.75
+                        if is_up:
+                            current_up_count += 1
+                            up_positions.append(pull_num)
+                            current_guarantee = False  # 重置guarantee
+                        else:
+                            current_avg_count += 1
+                            avg_positions.append(pull_num)
+                            current_guarantee = True  # 下次必UP
+                    
+                    # 判定是否为定轨武器
+                    if is_up:
+                        # 是UP武器，50%概率为定轨武器
+                        is_fate = rs.random() < 0.5
+                        if not is_fate:
+                            current_fate_point = min(1, current_fate_point + 1)
+                            if current_fate_point == 1:
+                                current_is_fate_guaranteed = True
+                        else:
+                            current_fate_point = 0
+                            current_fate_count += 1
+                            fate_positions.append(pull_num)
+                            # 抽到定轨武器后，大保底也清零
+                            current_guarantee = False
+                    else:
+                        # 非UP武器，不是定轨武器，增加命定值
+                        is_fate = False
                         current_fate_point = min(1, current_fate_point + 1)
                         if current_fate_point == 1:
                             current_is_fate_guaranteed = True
-                    else:
-                        current_fate_point = 0
-                        current_fate_count += 1
-                        fate_positions.append(pull_num)
-                        # 抽到定轨武器后，大保底也清零
-                        current_guarantee = False
-                else:
-                    # 非UP武器，不是定轨武器，增加命定值
-                    is_fate = False
-                    current_fate_point = min(1, current_fate_point + 1)
-                    if current_fate_point == 1:
-                        current_is_fate_guaranteed = True
                 
                 # 记录本次5星的信息
                 five_star_costs.append({

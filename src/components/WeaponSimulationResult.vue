@@ -24,7 +24,7 @@
             </div>
             <div class="stat-item">
               <div class="stat-label">定轨武器数量</div>
-              <div class="stat-value success">{{ result.fate_count }}</div>
+              <div class="stat-value warning">{{ result.fate_count }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">UP（非定轨）武器数量</div>
@@ -139,16 +139,16 @@ export default {
     getBarWidth(cost) {
       // 计算条的宽度，基于抽数比例
       const maxCost = 80
-      const minWidth = 20
-      const maxWidth = 900
+      const minWidth = 15
+      const maxWidth = 850
       const widthRatio = Math.min(cost / maxCost, 1)
       return `${minWidth + widthRatio * (maxWidth - minWidth)}px`
     },
     getBarColor(cost) {
       // 根据抽数大小确定颜色
-      if (cost <= 40) {
+      if (cost <= 30) {
         return '#2ecc71' // 绿色
-      } else if (cost <= 65) {
+      } else if (cost <= 63) {
         return '#f9ca24' // 亮色浅橙色
       } else {
         return '#e74c3c' // 红色
@@ -259,6 +259,10 @@ h1 {
 
 .success {
   color: #27ae60;
+}
+
+.warning {
+  color: #ffc107;
 }
 
 .failure {

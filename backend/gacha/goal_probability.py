@@ -189,7 +189,7 @@ class GoalProbabilityCalculator:
         if strategy == "character_then_weapon":
             # 抽取角色
             while remaining > 0 and got_char < need_char:
-                success, _, _, is_up = char_sim.draw_once()
+                success, _, _, is_up, _ = char_sim.draw_once()  # 接收5个返回值，忽略第5个
                 remaining -= 1
                 if success and is_up:
                     got_char += 1
@@ -217,7 +217,7 @@ class GoalProbabilityCalculator:
                         return True
             # 抽取角色
             while remaining > 0 and got_char < need_char:
-                success, _, _, is_up = char_sim.draw_once()
+                success, _, _, is_up, _ = char_sim.draw_once()  # 接收5个返回值，忽略第5个
                 remaining -= 1
                 if success and is_up:
                     got_char += 1

@@ -86,7 +86,7 @@ class CharacterGachaSimulator:
     def draw_once(self) -> tuple[bool, int, float, bool, bool]:
         """进行一次抽卡：使用当前 `pity` 计算命中率并进行随机判定。
 
-        副作用：若未命中，`self.pity` 增加 1；若命中，`self.pity` 重置为 0。
+        若未命中，`self.pity` 增加 1；若命中，`self.pity` 重置为 0。
         返回值为 `(is_5star, new_pity, used_probability, is_up, capture_minguang_triggered)`。
         其中 `is_up` 表示若获得 5★，是否为 UP 角色，`capture_minguang_triggered` 表示是否触发了捕获明光机制。
         """
@@ -313,7 +313,9 @@ class CharacterGachaSimulator:
                 last_hit_position = pull_num
                 
                 # 先判断捕获明光计数器是否为3，若是则必定触发捕获明光
+                capture_minguang = False
                 if current_migu_counter >= 3:
+                    capture_minguang = True
                     is_up = True
                     current_up_count += 1
                     current_capture_minguang_count += 1  # 增加捕获明光触发次数
@@ -357,7 +359,8 @@ class CharacterGachaSimulator:
                 # 记录本次5星的信息
                 five_star_costs.append({
                     'cost': cost,
-                    'is_up': is_up
+                    'is_up': is_up,
+                    'capture_minguang': capture_minguang
                 })
                 
                 # 重置pity

@@ -23,7 +23,10 @@
               <div class="history-pull-number">{{ result.total_pulls - index }}</div>
               <div class="history-star">{{ item.star === 5 ? item.star : '3/4' }}★</div>
               <div class="history-name"></div>
-              <div class="history-type" v-if="item.star === 5">{{ item.name.includes('常驻') ? '常驻角色' : item.name.includes('UP') ? 'UP角色' : '' }}</div>
+              <div class="history-type" v-if="item.star === 5">
+                {{ item.name.includes('常驻') ? '常驻角色' : item.name.includes('UP') ? 'UP角色' : '' }}
+                <span v-if="item.capture_minguang" class="capture-minguang-tag">捕获明光</span>
+              </div>
             </div>
           </div>
         </div>
@@ -36,7 +39,10 @@
             <div class="results-container">
               <div v-for="(item, index) in displayResults" :key="index" class="result-item" :class="[`star-${item.star}`, { 'appear-animation': showRefreshAnimation }]">
                 <div class="result-star">{{ item.star === 5 ? item.star : '3/4' }}★</div>
-                <div class="result-name">{{ item.star === 5 ? (item.name.includes('常驻') ? '常驻' : item.name.includes('UP') ? 'UP' : item.name) : '' }}</div>
+                <div class="result-name">
+                  {{ item.star === 5 ? (item.name.includes('常驻') ? '常驻' : item.name.includes('UP') ? 'UP' : item.name) : '' }}
+                  <span v-if="item.capture_minguang" class="capture-minguang-tag">捕获明光</span>
+                </div>
               </div>
             </div>
           </div>
@@ -278,6 +284,27 @@ export default {
   width: 100%;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+.capture-minguang-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background-color: #ffb6c1;
+  color: white;
+  font-size: 12px;
+  border-radius: 10px;
+  font-weight: bold;
+  animation: glow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 5px #ffb6c1, 0 0 10px #ffb6c1;
+  }
+  to {
+    box-shadow: 0 0 10px #ffb6c1, 0 0 20px #ffb6c1, 0 0 30px #ffb6c1;
+  }
 }
 
 .content-container {

@@ -24,7 +24,7 @@
             </div>
             <div class="stat-item">
               <div class="stat-label">UP角色数量</div>
-              <div class="stat-value success">{{ result.up_count }}</div>
+              <div class="stat-value warning">{{ result.up_count }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">常驻角色数量</div>
@@ -32,7 +32,7 @@
             </div>
             <div class="stat-item">
               <div class="stat-label">捕获明光触发次数</div>
-              <div class="stat-value success">{{ result.capture_minguang_count || 0 }}</div>
+              <div class="stat-value pink">{{ result.capture_minguang_count || 0 }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">5★概率</div>
@@ -80,6 +80,7 @@
               <span class="cost">{{ item.cost }}抽</span>
               <div class="cost-bar" :style="{ width: getBarWidth(item.cost), backgroundColor: getBarColor(item.cost) }"></div>
               <span v-if="!item.is_up" class="is-avg">常驻（歪）</span>
+              <span v-else-if="item.capture_minguang" class="is-up-capture">UP（捕获明光）</span>
             </div>
           </div>
         </div>
@@ -138,16 +139,16 @@ export default {
     getBarWidth(cost) {
       // 计算条的宽度，基于抽数比例
       const maxCost = 90
-      const minWidth = 20
-      const maxWidth = 900
+      const minWidth = 15
+      const maxWidth = 850
       const widthRatio = Math.min(cost / maxCost, 1)
       return `${minWidth + widthRatio * (maxWidth - minWidth)}px`
     },
     getBarColor(cost) {
       // 根据抽数大小确定颜色
-      if (cost <= 40) {
+      if (cost <= 30) {
         return '#2ecc71' // 绿色
-      } else if (cost <= 75) {
+      } else if (cost <= 73) {
         return '#f9ca24' // 亮色浅橙色
       } else {
         return '#e74c3c' // 红色
@@ -260,6 +261,14 @@ h1 {
   color: #27ae60;
 }
 
+.warning {
+  color: #ffc107;
+}
+
+.pink {
+  color: #ff6b81;
+}
+
 .failure {
   color: #e74c3c;
 }
@@ -289,6 +298,12 @@ h1 {
 
 .is-avg {
   color: #000000;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.is-up-capture {
+  color: #ff6b81;
   font-weight: bold;
   font-size: 14px;
 }

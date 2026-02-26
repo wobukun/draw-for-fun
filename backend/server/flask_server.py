@@ -430,8 +430,8 @@ class GachaServer:
     def process_character_result(self, result):
         """处理角色单抽结果"""
         response_data = {}
-        if len(result['results']) == len(result['is_up']) == len(result['used_probs']):
-            is_5star, is_up, prob = result['results'][0], result['is_up'][0], result['used_probs'][0]
+        if len(result['results']) == len(result['is_up']) == len(result['used_probs']) and len(result['capture_minguang']) == len(result['results']):
+            is_5star, is_up, prob, capture_minguang = result['results'][0], result['is_up'][0], result['used_probs'][0], result['capture_minguang'][0]
             if is_5star:
                 star = 5
                 if is_up:
@@ -451,7 +451,8 @@ class GachaServer:
                 'up_pity': result['up_pity'],
                 'avg_count': result['avg_count'],
                 'up_count': result['up_count'],
-                'guarantee_up': result['guarantee_up']
+                'guarantee_up': result['guarantee_up'],
+                'capture_minguang': capture_minguang
             }
         return jsonify(response_data)
     
@@ -466,8 +467,8 @@ class GachaServer:
             'up_count': result['up_count'],
             'guarantee_up': result['guarantee_up']
         }
-        if len(result['results']) == len(result['is_up']) == len(result['used_probs']):
-            for i, (is_5star, is_up, prob) in enumerate(zip(result['results'], result['is_up'], result['used_probs'])):
+        if len(result['results']) == len(result['is_up']) == len(result['used_probs']) and len(result['capture_minguang']) == len(result['results']):
+            for i, (is_5star, is_up, prob, capture_minguang) in enumerate(zip(result['results'], result['is_up'], result['used_probs'], result['capture_minguang'])):
                 if is_5star:
                     star = 5
                     if is_up:
@@ -481,7 +482,8 @@ class GachaServer:
                 response_data['results'].append({
                     'star': star,
                     'name': name,
-                    'probability': prob
+                    'probability': prob,
+                    'capture_minguang': capture_minguang
                 })
         return jsonify(response_data)
     
