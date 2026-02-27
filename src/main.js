@@ -3,11 +3,14 @@ import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import MainMenu from './components/MainMenu.vue'
 import CharacterGacha from './components/CharacterGacha.vue'
+import CharacterGacha2 from './components/CharacterGacha2.vue'
 import WeaponGacha from './components/WeaponGacha.vue'
 import CharacterPullResult from './components/CharacterPullResult.vue'
+import CharacterPullResult2 from './components/CharacterPullResult2.vue'
 import WeaponPullResult from './components/WeaponPullResult.vue'
 import ClosePrompt from './components/ClosePrompt.vue'
 import CharacterSimulationResult from './components/CharacterSimulationResult.vue'
+import CharacterSimulationResult2 from './components/CharacterSimulationResult2.vue'
 import WeaponSimulationResult from './components/WeaponSimulationResult.vue'
 import HelpPage from './components/HelpPage.vue'
 import GoalProbability from './components/GoalProbability.vue'
@@ -25,6 +28,11 @@ const routes = [
     component: CharacterGacha
   },
   {
+    path: '/character-2',
+    name: 'CharacterGacha2',
+    component: CharacterGacha2
+  },
+  {
     path: '/weapon',
     name: 'WeaponGacha',
     component: WeaponGacha
@@ -35,6 +43,11 @@ const routes = [
     component: CharacterPullResult
   },
   {
+    path: '/character-result-2',
+    name: 'CharacterPullResult2',
+    component: CharacterPullResult2
+  },
+  {
     path: '/weapon-result',
     name: 'WeaponPullResult',
     component: WeaponPullResult
@@ -43,6 +56,11 @@ const routes = [
     path: '/character-simulation-result',
     name: 'CharacterSimulationResult',
     component: CharacterSimulationResult
+  },
+  {
+    path: '/character-simulation-result-2',
+    name: 'CharacterSimulationResult2',
+    component: CharacterSimulationResult2
   },
   {
     path: '/weapon-simulation-result',

@@ -1,13 +1,13 @@
 """
-角色活动祈愿抽卡模拟器 — 规则说明
+角色活动祈愿-2抽卡模拟器 — 规则说明
 
 规则概览：
 - 5星物品规则：
   - 5星物品基础概率为 `BASE_RATE`（默认 0.6%）
   - 当连续73抽未抽到5星或以上物品时，抽取到5星物品的概率每抽上升6%，直到最高100%。
     即第74抽抽取5星以上概率为6.6%（0.6% + 6%）。
-  - 当祈愿获取到5星物品时，有50.000%的概率为本期5星UP角色。
-  - 如果本次祈愿获取的5星物品非本期5星UP角色，下次祈愿获取的5星物品必定为本期5星UP角色。
+  - 当祈愿获取到5星物品时，有50.000%的概率为本期5星UP角色-2。
+  - 如果本次祈愿获取的5星物品非本期5星UP角色-2，下次祈愿获取的5星物品必定为本期5星UP角色-2。
 
 - 4星物品规则：
   - 4星物品基础概率为 `FOUR_STAR_BASE_RATE`（默认 5.100%）
@@ -24,7 +24,7 @@
 
 - 其他规则：
   - 若当次祈愿未获取4,5星物品，则随机获取1个3星物品。
-  - 程序会维护累计抽数 `total_pulls`，并在输出页显示“当前总抽数”。
+  - 程序会维护累计抽数 `total_pulls`，并在输出页显示"当前总抽数"。
 """
 
 import numpy as np
@@ -53,14 +53,14 @@ FOUR_STAR_PITY_THRESHOLD = 8  # 4星概率开始提升的阈值（连续8抽未�
 FOUR_STAR_PITY_INCREASE = 0.51  # 超过保底阈值前每抽一次4星概率提升 51%
 
 # 5星UP角色
-FIVE_STAR_UP_CHARACTER = '5星UP角色-1'  # 本期5星UP角色
+FIVE_STAR_UP_CHARACTER = '5星UP角色-2'  # 本期5星UP角色-2
 
 # 4星UP角色列表
 FOUR_STAR_UP_CHARACTERS = ['4星UP角色-1', '4星UP角色-2', '4星UP角色-3']  # 本期4星UP角色
 
 
-class CharacterGachaSimulator:
-    """封装抽卡逻辑的类。
+class CharacterGachaSimulator2:
+    """封装角色活动祈愿-2抽卡逻辑的类。
 
     属性:
     - `pity`: 当前已连续未抽中 5★ 角色 的次数（整数）
@@ -522,7 +522,7 @@ class CharacterGachaSimulator:
                 
                 # 重置pity
                 current_pity = 0
-                # current_four_star_pity = 0  # 命中5星时不再重置4星pity
+                current_four_star_pity = 0  # 命中5星时也重置4星pity
             else:
                 # 未命中5星，判断是否命中4星
                 # 计算4星概率

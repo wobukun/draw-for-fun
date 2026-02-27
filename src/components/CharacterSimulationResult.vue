@@ -23,11 +23,11 @@
               <div class="stat-value">{{ result.total_hits }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">UP角色数量</div>
+              <div class="stat-label">5★UP角色数</div>
               <div class="stat-value warning">{{ result.up_count }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">常驻角色数量</div>
+              <div class="stat-label">5★常驻角色数</div>
               <div class="stat-value">{{ result.avg_count }}</div>
             </div>
             <div class="stat-item">
@@ -36,11 +36,35 @@
             </div>
             <div class="stat-item">
               <div class="stat-label">5★概率</div>
-              <div class="stat-value probability">{{ ((result.total_hits / result.total_pulls) * 100).toFixed(2) }}%</div>
+              <div class="stat-value probability">{{ result.total_pulls > 0 ? ((result.total_hits / result.total_pulls) * 100).toFixed(3) : '0.000' }}%</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">UP角色概率</div>
-              <div class="stat-value probability">{{ ((result.up_count / result.total_pulls) * 100).toFixed(2) }}%</div>
+              <div class="stat-label">5★UP角色概率</div>
+              <div class="stat-value probability">{{ result.total_pulls > 0 ? ((result.up_count / result.total_pulls) * 100).toFixed(3) : '0.000' }}%</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">4★UP角色数</div>
+              <div class="stat-value four-star-up">{{ result.four_star_up_count || 0 }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">4★UP角色-1</div>
+              <div class="stat-value four-star-up">{{ result.four_star_up_1_count || 0 }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">4★UP角色-2</div>
+              <div class="stat-value four-star-up">{{ result.four_star_up_2_count || 0 }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">4★UP角色-3</div>
+              <div class="stat-value four-star-up">{{ result.four_star_up_3_count || 0 }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">4★常驻角色数</div>
+              <div class="stat-value">{{ result.four_star_avg_count || 0 }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">4★概率</div>
+              <div class="stat-value probability">{{ result.total_pulls > 0 ? (((result.four_star_up_count + result.four_star_avg_count) / result.total_pulls) * 100).toFixed(3) : '0.000' }}%</div>
             </div>
           </div>
         </div>
@@ -51,23 +75,23 @@
           <div class="stats-grid">
             <div class="stat-item">
               <div class="stat-label">抽到UP角色的平均抽数</div>
-              <div class="stat-value">{{ result.stats.avg_count.toFixed(2) }}</div>
+              <div class="stat-value">{{ (result.stats.avg_count || 0).toFixed(2) }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">抽到UP角色的中位数抽数</div>
-              <div class="stat-value">{{ result.stats.median_count.toFixed(2) }}</div>
+              <div class="stat-value">{{ (result.stats.median_count || 0).toFixed(2) }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">UP角色标准差</div>
-              <div class="stat-value">{{ result.stats.std_count.toFixed(2) }}</div>
+              <div class="stat-value">{{ (result.stats.std_count || 0).toFixed(2) }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">UP角色最小抽数</div>
-              <div class="stat-value">{{ result.stats.min_count }}</div>
+              <div class="stat-value">{{ result.stats.min_count || 0 }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">UP角色最大抽数</div>
-              <div class="stat-value">{{ result.stats.max_count }}</div>
+              <div class="stat-value">{{ result.stats.max_count || 0 }}</div>
             </div>
           </div>
         </div>
@@ -99,6 +123,12 @@ export default {
         total_hits: 0,
         up_count: 0,
         avg_count: 0,
+        four_star_up_count: 0,
+        four_star_up_1_count: 0,
+        four_star_up_2_count: 0,
+        four_star_up_3_count: 0,
+        four_star_avg_count: 0,
+        four_star_total_count: 0,
         stats: {
           avg_count: 0,
           median_count: 0,
@@ -215,14 +245,13 @@ h1 {
 
 .stats-grid {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 10px;
-  overflow-x: auto;
   width: 100%;
 }
 
 .stats-grid .stat-item {
-  flex: 1;
+  flex: 0 0 calc(14.2857% - 10px);
   min-width: 120px;
   max-width: 200px;
 }
@@ -267,6 +296,11 @@ h1 {
 
 .pink {
   color: #ff6b81;
+}
+
+.four-star-up {
+  color: #8b5cf6;
+  text-shadow: 0 1px 2px rgba(139, 92, 246, 0.3);
 }
 
 .failure {

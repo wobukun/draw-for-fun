@@ -7,7 +7,7 @@
         <button @click="goToMainMenu" class="action-button">主菜单</button>
       </div>
       
-      <h1>角色活动祈愿结果</h1>
+      <h1>角色活动祈愿-2结果</h1>
       
       <div class="main-content">
         <!-- 左侧：历史记录 -->
@@ -145,7 +145,7 @@
 import axios from 'axios'
 
 export default {
-  name: 'CharacterPullResult',
+  name: 'CharacterPullResult2',
   data() {
     return {
       result: {
@@ -209,7 +209,7 @@ export default {
         // 同时处理网络请求和固定延迟
         const [response] = await Promise.all([
           axios.post('/api/gacha', {
-            mode: 'character',
+            mode: 'character2',
             action: 'one',
             current_pity: this.result.current_pity || 0,
             four_star_pity: this.result.four_star_pity || 0,
@@ -260,7 +260,7 @@ export default {
         // 同时处理网络请求和固定延迟
         const [response] = await Promise.all([
           axios.post('/api/gacha', {
-            mode: 'character',
+            mode: 'character2',
             action: 'ten',
             current_pity: this.result.current_pity || 0,
             four_star_pity: this.result.four_star_pity || 0,
@@ -302,7 +302,7 @@ export default {
       }
     },
     goBack() {
-      this.$router.push('/character')
+      this.$router.push('/character-2')
     },
     goToMainMenu() {
       this.$router.push('/')
@@ -371,8 +371,8 @@ export default {
         return name
       } else if (item.star === 5) {
         const name = item.name
-        if (name.includes('5星UP角色-1')) {
-          return 'UP-1'
+        if (name.includes('5星UP角色-2')) {
+          return 'UP-2'
         } else if (name.includes('5星常驻角色')) {
           return '常驻'
         }
@@ -396,8 +396,8 @@ export default {
         return name
       } else if (item.star === 5) {
         const name = item.name
-        if (name.includes('5星UP角色-1')) {
-          return 'UP-1'
+        if (name.includes('5星UP角色-2')) {
+          return 'UP-2'
         } else if (name.includes('5星常驻角色')) {
           return '常驻'
         }
@@ -502,6 +502,7 @@ export default {
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 
@@ -536,6 +537,7 @@ export default {
   padding: 0 20px 15px 0;
   box-sizing: border-box;
   width: 100%;
+  flex-shrink: 0;
 }
 
 /* 自定义滚动条 */
@@ -713,6 +715,12 @@ export default {
   font-weight: 600;
 }
 
+.history-item-5star {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid #fbbf24;
+  box-shadow: 0 4px 16px rgba(251, 191, 36, 0.2);
+}
+
 /* 右侧：抽卡结果和按钮 */
 .pull-results-wrapper {
   flex: 1;
@@ -725,22 +733,7 @@ export default {
   height: 100%;
 }
 
-/* 标题样式 */
-h1 {
-  color: #2d3748;
-  margin-bottom: 10px;
-  font-size: 24px;
-  text-align: center;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  font-weight: 800;
-  width: 100%;
-  position: relative;
-  padding: 5px 0;
-}
-
-
-
-/* 抽卡结果部分 */
+/* 抽卡结果 */
 .pull-results {
   width: 100%;
   background: rgba(255,255, 255, 0.98);
@@ -754,6 +747,19 @@ h1 {
   margin: 0 auto 20px;
   width: 100%;
   font-size: 20px;
+}
+
+/* 标题样式 */
+h1 {
+  color: #2d3748;
+  margin-bottom: 10px;
+  font-size: 24px;
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-weight: 800;
+  width: 100%;
+  position: relative;
+  padding: 5px 0;
 }
 
 .results-container {
@@ -786,7 +792,6 @@ h1 {
   overflow-x: auto;
 }
 
-/* 结果卡片样式 */
 .result-wrapper {
   position: relative;
   display: flex;
@@ -819,7 +824,7 @@ h1 {
   box-sizing: border-box;
 }
 
-/* 右侧文字列表样式 */
+/* 捕获明光卡片样式 */
 .result-item.capture-minguang-card {
   background: #ffb6c1;
   border-color: #ff6b81;
@@ -906,7 +911,6 @@ h1 {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2), 0 0 30px rgba(255, 255, 255, 0.4);
   z-index: 10;
 }
-
 
 .result-name {
   font-size: 13px;

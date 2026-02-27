@@ -1,7 +1,7 @@
 <template>
   <div class="character-gacha">
     <div class="content-container">
-      <h1>角色活动祈愿</h1>
+      <h1>角色活动祈愿-2</h1>
       <div class="gacha-buttons">
         <button @click="startGacha" class="gacha-button start-button">开始</button>
         <button @click="showAutoSimulation" class="gacha-button auto-button">自动模拟</button>
@@ -18,7 +18,7 @@
         <h2>自动模拟设置</h2>
         <div class="form-group">
           <label for="sim-count">模拟抽取次数：</label>
-          <input type="number" id="sim-count" v-model.number="simCount" min="0" max="10000000" value="1000">
+          <input type="number" id="sim-count" v-model.number="simCount" min="0" max="10000000" value="1000" title="">
         </div>
         <div class="modal-buttons">
           <button @click="performAutoSimulation" class="modal-button">开始模拟</button>
@@ -44,7 +44,7 @@
 import axios from 'axios'
 
 export default {
-  name: 'CharacterGacha',
+  name: 'CharacterGacha2',
   data() {
     return {
       showAutoSim: false,
@@ -57,7 +57,7 @@ export default {
   methods: {
     startGacha() {
       // 直接跳转到结果页面
-      this.$router.push('/character-result')
+      this.$router.push('/character-result-2')
     },
     showAutoSimulation() {
       this.showAutoSim = true
@@ -86,7 +86,7 @@ export default {
       
       // 提交自动模拟请求
       axios.post('/api/gacha', {
-        mode: 'character',
+        mode: 'character2',
         action: 'auto',
         count: this.simCount,
         start_pity: 0
@@ -99,7 +99,7 @@ export default {
         setTimeout(() => {
           this.isLoading = false
           this.$router.push({
-            path: '/character-simulation-result',
+            path: '/character-simulation-result-2',
             query: { result: JSON.stringify(response.data) }
           })
         }, 500)
@@ -316,6 +316,12 @@ h1 {
   border-color: #3498db;
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
   background: white;
+}
+
+.form-group input:hover::-webkit-inner-spin-button,
+.form-group input:hover::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .modal-buttons {

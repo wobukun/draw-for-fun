@@ -28,6 +28,7 @@ sys.path.insert(0, backend_dir)
 
 # 直接指定抽卡模拟器模块的路径
 draw_character_path = os.path.join(backend_dir, "gacha", "draw_character.py")
+draw_character_2_path = os.path.join(backend_dir, "gacha", "draw_character_2.py")
 draw_weapon_path = os.path.join(backend_dir, "gacha", "draw_weapon.py")
 goal_probability_path = os.path.join(backend_dir, "gacha", "goal_probability.py")
 
@@ -43,10 +44,12 @@ def import_module_from_path(module_name, file_path):
 
 # 导入抽卡模拟器模块
 draw_character = import_module_from_path("draw_character", draw_character_path)
+draw_character_2 = import_module_from_path("draw_character_2", draw_character_2_path)
 draw_weapon = import_module_from_path("draw_weapon", draw_weapon_path)
 goal_probability = import_module_from_path("goal_probability", goal_probability_path)
 
 CharacterGachaSimulator = draw_character.CharacterGachaSimulator
+CharacterGachaSimulator2 = draw_character_2.CharacterGachaSimulator2
 WeaponGachaSimulator = draw_weapon.WeaponGachaSimulator
 
 app = Flask(__name__)
@@ -58,6 +61,7 @@ class GachaServer:
     def __init__(self):
         """初始化抽卡服务器"""
         self.character_simulator = None
+        self.character_simulator_2 = None
         self.weapon_simulator = None
     
     def handle_gacha(self):
@@ -68,42 +72,11 @@ class GachaServer:
             action = data.get('action')
             
             if mode == 'character':
-                # 角色抽卡
-                # 从请求中获取抽卡进度参数
-                current_pity = data.get('current_pity', 0)
-                up_pity = data.get('up_pity', 0)
-                avg_count = data.get('avg_count', 0)
-                up_count = data.get('up_count', 0)
-                guarantee_up = data.get('guarantee_up', False)
-                total_pulls = data.get('total_pulls', 0)
-                migu_counter = data.get('migu_counter', 0)
-                
-                # 创建新的模拟器实例，使用请求中的抽卡进度参数
-                sim = CharacterGachaSimulator()
-                sim.pity = current_pity
-                sim.up_pity = up_pity
-                sim.avg_count = avg_count
-                sim.up_count = up_count
-                sim.guarantee_up = guarantee_up
-                sim.total_pulls = total_pulls
-                sim.migu_counter = migu_counter
-                
-                if action == 'one':
-                    # 角色单抽
-                    result = sim.pull_one()
-                    return self.process_character_result(result)
-                elif action == 'ten':
-                    # 角色十连
-                    result = sim.pull_ten()
-                    return self.process_character_ten_result(result)
-                elif action == 'auto':
-                    # 角色自动模拟
-                    count = data.get('count', 1000)
-                    start_pity = data.get('start_pity', 0)
-                    sim = CharacterGachaSimulator(start_pity)
-                    result = sim.simulate_pulls(count)
-                    result['total_pulls'] = count
-                    return jsonify(result)
+                # 角色活动祈愿-1
+                return self._handle_character_gacha(data, action, CharacterGachaSimulator)
+            elif mode == 'character2':
+                # 角色活动祈愿-2
+                return self._handle_character_gacha(data, action, CharacterGachaSimulator2)
             elif mode == 'weapon':
                 # 武器抽卡
                 # 从请求中获取抽卡进度参数
@@ -153,6 +126,59 @@ class GachaServer:
             app.logger.error(f"Error handling gacha request: {e}")
             return jsonify({'error': str(e)}), 500
 
+    def _handle_character_gacha(self, data, action, SimulatorClass):
+        """处理角色抽卡的通用方法"""
+        # 从请求中获取抽卡进度参数
+        current_pity = data.get('current_pity', 0)
+        up_pity = data.get('up_pity', 0)
+        avg_count = data.get('avg_count', 0)
+        up_count = data.get('up_count', 0)
+        guarantee_up = data.get('guarantee_up', False)
+        total_pulls = data.get('total_pulls', 0)
+        migu_counter = data.get('migu_counter', 0)
+        
+        # 创建新的模拟器实例，使用请求中的抽卡进度参数
+        sim = SimulatorClass()
+        sim.pity = current_pity
+        sim.four_star_pity = data.get('four_star_pity', 0)
+        sim.up_pity = up_pity
+        sim.avg_count = avg_count
+        sim.up_count = up_count
+        sim.four_star_up_count = data.get('four_star_up_count', 0)
+        sim.four_star_avg_count = data.get('four_star_avg_count', 0)
+        sim.four_star_up_1_count = data.get('four_star_up_1_count', 0)
+        sim.four_star_up_2_count = data.get('four_star_up_2_count', 0)
+        sim.four_star_up_3_count = data.get('four_star_up_3_count', 0)
+        sim.guarantee_up = guarantee_up
+        sim.guarantee_four_star_up = data.get('guarantee_four_star_up', False)
+        sim.total_pulls = total_pulls
+        sim.migu_counter = migu_counter
+        
+        # 获取5星UP角色名称（从模块中获取）
+        if SimulatorClass == CharacterGachaSimulator2:
+            five_star_up_name = draw_character_2.FIVE_STAR_UP_CHARACTER
+        else:
+            five_star_up_name = draw_character.FIVE_STAR_UP_CHARACTER
+        
+        if action == 'one':
+            # 角色单抽
+            result = sim.pull_one()
+            return self.process_character_result(result, five_star_up_name)
+        elif action == 'ten':
+            # 角色十连
+            result = sim.pull_ten()
+            return self.process_character_ten_result(result, five_star_up_name)
+        elif action == 'auto':
+            # 角色自动模拟
+            count = data.get('count', 1000)
+            start_pity = data.get('start_pity', 0)
+            sim = SimulatorClass(start_pity)
+            result = sim.simulate_pulls(count)
+            result['total_pulls'] = count
+            return jsonify(result)
+        else:
+            return jsonify({'error': 'Unknown action'}), 400
+
     def handle_goal_probability(self):
         """根据资源与目标，估算达成目标概率（蒙特卡洛模拟）"""
         try:
@@ -163,7 +189,7 @@ class GachaServer:
             if resources < 0:
                 return jsonify({'error': 'resources must be >= 0'}), 400
 
-            # 目标：允许用“层数”或直接 copies
+            # 目标：允许用"层数"或直接 copies
             # 角色：0命=1个UP角色，1命=2个UP角色... => copies = constellation + 1
             if 'target_character_copies' in data:
                 character_target_copies = int(data.get('target_character_copies', 0))
@@ -191,408 +217,363 @@ class GachaServer:
 
             # 模拟参数
             trials = int(data.get('trials', 5000))
-            if trials <= 0:
-                return jsonify({'error': 'trials must be > 0'}), 400
-            seed = data.get('seed', None)
+            if trials < 100:
+                return jsonify({'error': 'trials must be >= 100'}), 400
 
-            # 起始抽卡状态（可选；默认都按 0 起算）
-            start = goal_probability.StartState(
-                character_pity=int(data.get('character_pity', 0)),
-                character_guarantee_up=bool(data.get('character_guarantee_up', False)),
-                weapon_pity=int(data.get('weapon_pity', 0)),
-                weapon_guarantee_up=bool(data.get('weapon_guarantee_up', False)),
-                weapon_fate_point=int(data.get('weapon_fate_point', 0)),
-                weapon_is_fate_guaranteed=bool(data.get('weapon_is_fate_guaranteed', False)),
-            )
-
-            # 策略：auto / character_first / weapon_first
-            strategy_req = str(data.get('strategy', 'auto')).lower()
-            results = {}
-
-            def run(strategy: str):
-                calculator = goal_probability.GoalProbabilityCalculator()
-                return calculator.estimate_goal_probability(
-                    pulls=resources,
-                    character_target_copies=character_target_copies,
-                    weapon_target_copies=weapon_target_copies,
-                    trials=trials,
-                    strategy=strategy,
-                    seed=seed,
-                    start=start,
-                    draw_character_module=draw_character,
-                    draw_weapon_module=draw_weapon,
-                )
-
-            if strategy_req in ('character_first', 'character_then_weapon'):
-                r = run('character_then_weapon')
-                results[r['strategy']] = r
-                best = r
-            elif strategy_req in ('weapon_first', 'weapon_then_character'):
-                r = run('weapon_then_character')
-                results[r['strategy']] = r
-                best = r
-            elif strategy_req == 'auto':
-                r1 = run('character_then_weapon')
-                r2 = run('weapon_then_character')
-                results[r1['strategy']] = r1
-                results[r2['strategy']] = r2
-                best = r1 if r1['probability'] >= r2['probability'] else r2
+            # 执行蒙特卡洛模拟
+            calculator = goal_probability.GoalProbabilityCalculator()
+            
+            # 根据请求中的 mode 参数选择模拟器类型
+            mode = data.get('mode', 'character')
+            if mode == 'character2':
+                simulator_class = CharacterGachaSimulator2
             else:
-                return jsonify({'error': f'Unknown strategy: {strategy_req}'}), 400
+                simulator_class = CharacterGachaSimulator
+            
+            result = calculator.calculate_goal_probability(
+                resources=resources,
+                character_target_copies=character_target_copies,
+                weapon_target_copies=weapon_target_copies,
+                trials=trials,
+                character_simulator_class=simulator_class
+            )
+            
+            return jsonify(result)
+        except Exception as e:
+            app.logger.error(f"Error calculating goal probability: {e}")
+            return jsonify({'error': str(e)}), 500
 
-            return jsonify({
-                'resources': resources,
-                'targets': {
-                    'character_target_copies': character_target_copies,
-                    'weapon_target_copies': weapon_target_copies
-                },
-                'interpretation': {
-                    'character_copy_definition': '每个UP五星角色计为1个“角色拷贝”（用于命之座）',
-                    'weapon_copy_definition': '每个“定轨武器”(is_fate=True)计为1把目标武器（用于精炼）'
-                },
-                'start_state': {
-                    'character_pity': start.character_pity,
-                    'character_guarantee_up': start.character_guarantee_up,
-                    'weapon_pity': start.weapon_pity,
-                    'weapon_guarantee_up': start.weapon_guarantee_up,
-                    'weapon_fate_point': start.weapon_fate_point,
-                    'weapon_is_fate_guaranteed': start.weapon_is_fate_guaranteed
-                },
-                'best': best,
-                'all_strategies': results
-            })
-        except ValueError as e:
-            return jsonify({'error': str(e)}), 400
-        except Exception as e:
-            app.logger.error(f"Error handling goal probability request: {e}")
-            return jsonify({'error': str(e)}), 500
-    
-    def shutdown(self):
-        """关闭服务器"""
-        try:
-            # 关闭服务器的逻辑
-            print("[DEBUG] 接收到关闭服务器的请求")
-            import threading
-            import time
-            
-            def exit_program():
-                print("[DEBUG] 关闭服务器线程启动，等待 0.5 秒后退出")
-                time.sleep(0.5)
-                print("[DEBUG] 调用 os._exit(0) 退出程序")
-                os._exit(0)
-            
-            thread = threading.Thread(target=exit_program)
-            thread.daemon = True
-            thread.start()
-            print("[DEBUG] 关闭服务器线程已启动")
-            
-            return jsonify({'message': 'Server shutting down...'})
-        except Exception as e:
-            print(f"[ERROR] 关闭服务器时出错: {e}")
-            import traceback
-            traceback.print_exc()
-            app.logger.error(f"Error shutting down server: {e}")
-            return jsonify({'error': str(e)}), 500
-    
     def handle_required_pulls_for_95_percent(self):
-        """处理95%概率所需抽数的请求"""
+        """计算达成目标所需的抽数（95%置信度）"""
         try:
-            data = request.json
-            
-            # 获取参数
-            character_target_constellation = int(data.get('character_target_constellation', 0))
-            weapon_target_refinement = int(data.get('weapon_target_refinement', 0))
-            strategy = str(data.get('strategy', 'character_then_weapon')).lower()
-            
-            # 验证策略
-            if strategy not in ('character_then_weapon', 'weapon_then_character'):
-                return jsonify({'error': f'Unknown strategy: {strategy}'}), 400
-            
-            # 计算所需抽数
+            data = request.json or {}
+
+            # 目标：允许用"层数"或直接 copies
+            if 'target_character_copies' in data:
+                character_target_copies = int(data.get('target_character_copies', 0))
+            elif 'target_character_constellation' in data:
+                character_target_copies = goal_probability.GoalProbabilityCalculator.constellation_to_copies(
+                    int(data.get('target_character_constellation', 0))
+                )
+            else:
+                character_target_copies = 0
+
+            if 'target_weapon_copies' in data:
+                weapon_target_copies = int(data.get('target_weapon_copies', 0))
+            elif 'target_weapon_refinement' in data:
+                weapon_target_copies = goal_probability.GoalProbabilityCalculator.refinement_to_copies(
+                    int(data.get('target_weapon_refinement', 0))
+                )
+            else:
+                weapon_target_copies = 0
+
+            if character_target_copies < 0 or weapon_target_copies < 0:
+                return jsonify({'error': 'targets must be >= 0'}), 400
+            if character_target_copies == 0 and weapon_target_copies == 0:
+                return jsonify({'error': 'at least one target must be > 0'}), 400
+
+            # 模拟参数
+            trials = int(data.get('trials', 2000))
+            if trials < 100:
+                return jsonify({'error': 'trials must be >= 100'}), 400
+
+            # 执行蒙特卡洛模拟
             calculator = goal_probability.GoalProbabilityCalculator()
-            result = calculator.calculate_required_pulls_for_95_percent_probability(
-                character_target_constellation=character_target_constellation,
-                weapon_target_refinement=weapon_target_refinement,
-                strategy=strategy,
-                draw_character_module=draw_character,
-                draw_weapon_module=draw_weapon,
+            
+            # 根据请求中的 mode 参数选择模拟器类型
+            mode = data.get('mode', 'character')
+            if mode == 'character2':
+                simulator_class = CharacterGachaSimulator2
+            else:
+                simulator_class = CharacterGachaSimulator
+            
+            result = calculator.calculate_required_pulls_for_confidence(
+                character_target_copies=character_target_copies,
+                weapon_target_copies=weapon_target_copies,
+                confidence=0.95,
+                trials=trials,
+                character_simulator_class=simulator_class
             )
             
             return jsonify(result)
-        except ValueError as e:
-            return jsonify({'error': str(e)}), 400
         except Exception as e:
-            app.logger.error(f"Error handling required pulls request: {e}")
-            import traceback
-            traceback.print_exc()
+            app.logger.error(f"Error calculating required pulls for 95%: {e}")
             return jsonify({'error': str(e)}), 500
-    
+
     def handle_required_pulls_for_50_percent(self):
-        """处理50%概率所需抽数（期望）的请求"""
+        """计算达成目标所需的抽数（50%置信度，中位数）"""
         try:
-            data = request.json
-            
-            # 获取参数
-            character_target_constellation = int(data.get('character_target_constellation', 0))
-            weapon_target_refinement = int(data.get('weapon_target_refinement', 0))
-            strategy = str(data.get('strategy', 'character_then_weapon')).lower()
-            
-            # 验证策略
-            if strategy not in ('character_then_weapon', 'weapon_then_character'):
-                return jsonify({'error': f'Unknown strategy: {strategy}'}), 400
-            
-            # 计算所需抽数
+            data = request.json or {}
+
+            # 目标：允许用"层数"或直接 copies
+            if 'target_character_copies' in data:
+                character_target_copies = int(data.get('target_character_copies', 0))
+            elif 'target_character_constellation' in data:
+                character_target_copies = goal_probability.GoalProbabilityCalculator.constellation_to_copies(
+                    int(data.get('target_character_constellation', 0))
+                )
+            else:
+                character_target_copies = 0
+
+            if 'target_weapon_copies' in data:
+                weapon_target_copies = int(data.get('target_weapon_copies', 0))
+            elif 'target_weapon_refinement' in data:
+                weapon_target_copies = goal_probability.GoalProbabilityCalculator.refinement_to_copies(
+                    int(data.get('target_weapon_refinement', 0))
+                )
+            else:
+                weapon_target_copies = 0
+
+            if character_target_copies < 0 or weapon_target_copies < 0:
+                return jsonify({'error': 'targets must be >= 0'}), 400
+            if character_target_copies == 0 and weapon_target_copies == 0:
+                return jsonify({'error': 'at least one target must be > 0'}), 400
+
+            # 模拟参数
+            trials = int(data.get('trials', 2000))
+            if trials < 100:
+                return jsonify({'error': 'trials must be >= 100'}), 400
+
+            # 执行蒙特卡洛模拟
             calculator = goal_probability.GoalProbabilityCalculator()
-            result = calculator.calculate_required_pulls_for_50_percent_probability(
-                character_target_constellation=character_target_constellation,
-                weapon_target_refinement=weapon_target_refinement,
-                strategy=strategy,
-                draw_character_module=draw_character,
-                draw_weapon_module=draw_weapon,
+            
+            # 根据请求中的 mode 参数选择模拟器类型
+            mode = data.get('mode', 'character')
+            if mode == 'character2':
+                simulator_class = CharacterGachaSimulator2
+            else:
+                simulator_class = CharacterGachaSimulator
+            
+            result = calculator.calculate_required_pulls_for_confidence(
+                character_target_copies=character_target_copies,
+                weapon_target_copies=weapon_target_copies,
+                confidence=0.50,
+                trials=trials,
+                character_simulator_class=simulator_class
             )
             
             return jsonify(result)
-        except ValueError as e:
-            return jsonify({'error': str(e)}), 400
         except Exception as e:
-            app.logger.error(f"Error handling required pulls request: {e}")
-            import traceback
-            traceback.print_exc()
+            app.logger.error(f"Error calculating required pulls for 50%: {e}")
             return jsonify({'error': str(e)}), 500
-    
-    def index(self):
-        """根路径"""
-        return '''
-        <!DOCTYPE html>
-        <html lang="zh-CN">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>抽卡模拟器</title>
-            <style>
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
-                
-                body {
-                    font-family: 'Microsoft YaHei', Arial, sans-serif;
-                    background-color: #f5f5f5;
-                    color: #333;
-                    line-height: 1.6;
-                }
-                
-                .container {
-                    max-width: 600px;
-                    margin: 50px auto;
-                    padding: 40px;
-                    background-color: white;
-                    border-radius: 10px;
-                    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-                }
-                
-                h1 {
-                    color: #4a4a4a;
-                    text-align: center;
-                    margin-bottom: 30px;
-                    padding-bottom: 20px;
-                    border-bottom: 2px solid #e0e0e0;
-                }
-                
-                p {
-                    text-align: center;
-                    margin-bottom: 30px;
-                    font-size: 16px;
-                }
-                
-                .footer {
-                    margin-top: 40px;
-                    text-align: center;
-                    color: #7f8c8d;
-                    font-size: 14px;
-                    padding-top: 20px;
-                    border-top: 1px solid #e0e0e0;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>抽卡模拟器</h1>
-                <p>后端API服务已启动，请使用Vue前端访问。</p>
-                <p>请在项目根目录运行 <code>npm run dev</code> 启动前端开发服务器，然后在浏览器中访问前端地址（默认是 http://localhost:3000）。</p>
-                <div class="footer">
-                    <p>抽卡模拟器 v1.0</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        '''
-    
-    def process_character_result(self, result):
-        """处理角色单抽结果"""
-        response_data = {}
-        if len(result['results']) == len(result['is_up']) == len(result['used_probs']) and len(result['capture_minguang']) == len(result['results']):
-            is_5star, is_up, prob, capture_minguang = result['results'][0], result['is_up'][0], result['used_probs'][0], result['capture_minguang'][0]
-            if is_5star:
-                star = 5
-                if is_up:
-                    name = 'UP角色'
-                else:
-                    name = '常驻角色'
+
+    def process_character_result(self, result, five_star_up_name='5星UP角色-1'):
+        """处理角色单抽结果，转换为前端需要的格式"""
+        is_5star = result['results'][0]
+        is_4star = result['four_star_results'][0]
+        star = 5 if is_5star else (4 if is_4star else 3)
+        
+        # 确定物品名称
+        name = '3星物品'
+        if is_5star:
+            # 5星物品
+            if result['is_up'][0]:
+                name = five_star_up_name
             else:
-                # 简化处理，不区分3星和4星，统一标注为3/4星
-                star = 4
-                name = '3/4星'
-            response_data = {
-                'star': star,
-                'name': name,
-                'probability': prob,
-                'total_pulls': result['total_pulls'],
-                'current_pity': result['new_pity'],
-                'up_pity': result['up_pity'],
-                'avg_count': result['avg_count'],
-                'up_count': result['up_count'],
-                'guarantee_up': result['guarantee_up'],
-                'capture_minguang': capture_minguang,
-                'migu_counter': result.get('migu_counter', 0)
-            }
-        return jsonify(response_data)
-    
-    def process_character_ten_result(self, result):
-        """处理角色十连结果"""
-        response_data = {
-            'results': [],
-            'total_pulls': result['total_pulls'],
-            'current_pity': result['new_pity'],
-            'up_pity': result['up_pity'],
+                name = '5星常驻角色'
+        elif is_4star:
+            # 4星物品
+            if result['is_four_star_up'][0]:
+                name = result['four_star_items'][0]
+            else:
+                name = '4星常驻物品'
+        
+        return jsonify({
+            'star': star,
+            'name': name,
+            'is_up': result['is_up'][0],
+            'is_four_star_up': result['is_four_star_up'][0],
+            'four_star_item': result['four_star_items'][0],
+            'new_pity': result['new_pity'],
+            'current_pity': result['new_pity'],  # 添加 current_pity 字段以兼容前端
+            'new_four_star_pity': result['new_four_star_pity'],
+            'used_prob': result['used_probs'][0],
             'avg_count': result['avg_count'],
             'up_count': result['up_count'],
+            'four_star_up_count': result.get('four_star_up_count', 0),
+            'four_star_avg_count': result.get('four_star_avg_count', 0),
+            'four_star_up_1_count': result.get('four_star_up_1_count', 0),
+            'four_star_up_2_count': result.get('four_star_up_2_count', 0),
+            'four_star_up_3_count': result.get('four_star_up_3_count', 0),
+            'up_pity': result['up_pity'],
+            'start_up_pity': result['start_up_pity'],
+            'total_pulls': result['total_pulls'],
             'guarantee_up': result['guarantee_up'],
-            'migu_counter': result.get('migu_counter', 0)
-        }
-        if len(result['results']) == len(result['is_up']) == len(result['used_probs']) and len(result['capture_minguang']) == len(result['results']):
-            for i, (is_5star, is_up, prob, capture_minguang) in enumerate(zip(result['results'], result['is_up'], result['used_probs'], result['capture_minguang'])):
-                if is_5star:
-                    star = 5
-                    if is_up:
-                        name = 'UP角色'
-                    else:
-                        name = '常驻角色'
-                else:
-                    # 简化处理，不区分3星和4星，统一标注为3/4星
-                    star = 4
-                    name = '3/4星'
-                response_data['results'].append({
-                    'star': star,
-                    'name': name,
-                    'probability': prob,
-                    'capture_minguang': capture_minguang
-                })
-        return jsonify(response_data)
-    
-    def process_weapon_result(self, result):
-        """处理武器单抽结果"""
-        response_data = {}
-        if len(result['results']) == len(result['is_up']) == len(result['used_probs']) == len(result['is_fate']):
-            is_5star, is_up, prob, is_fate = result['results'][0], result['is_up'][0], result['used_probs'][0], result['is_fate'][0]
+            'guarantee_four_star_up': result['guarantee_four_star_up'],
+            'capture_minguang': result['capture_minguang'][0],
+            'migu_counter': result['migu_counter'],
+            'guarantee_capture_minguang': result['guarantee_capture_minguang'],
+            'capture_minguang_count': result['capture_minguang_count']
+        })
+
+    def process_character_ten_result(self, result, five_star_up_name='5星UP角色-1'):
+        """处理角色十连结果，转换为前端需要的格式"""
+        # 构建结果数组，每个元素包含star、name等信息
+        results = []
+        for i in range(10):
+            is_5star = result['results'][i]
+            is_4star = result['four_star_results'][i]
+            star = 5 if is_5star else (4 if is_4star else 3)
+            
+            # 确定物品名称
+            name = '3星物品'
             if is_5star:
-                star = 5
-                if is_up:
-                    name = 'UP武器'
+                # 5星物品
+                if result['is_up'][i]:
+                    name = five_star_up_name
                 else:
-                    name = '常驻武器'
-            else:
-                # 简化处理，不区分3星和4星，统一标注为3/4星
-                star = 4
-                name = '3/4星'
-                is_fate = False
-            response_data = {
+                    name = '5星常驻角色'
+            elif is_4star:
+                # 4星物品
+                if result['is_four_star_up'][i]:
+                    name = result['four_star_items'][i]
+                else:
+                    name = '4星常驻物品'
+            
+            results.append({
                 'star': star,
                 'name': name,
-                'is_fate': is_fate,
-                'probability': prob,
-                'total_pulls': result['total_pulls'],
-                'current_pity': result['new_pity'],
-                'up_pity': result['up_pity'],
-                'fate_pity': result.get('fate_pity', 0),
-                'avg_count': result['avg_count'],
-                'up_count': result['up_count'],
-                'fate_count': result.get('fate_count', 0),
-                'guarantee_up': result['guarantee_up'],
-                'fate_point': result['fate_point'],
-                'is_fate_guaranteed': result['is_fate_guaranteed']
-            }
-        return jsonify(response_data)
-    
-    def process_weapon_ten_result(self, result):
-        """处理武器十连结果"""
-        response_data = {
-            'results': [],
-            'total_pulls': result['total_pulls'],
-            'current_pity': result['new_pity'],
-            'up_pity': result['up_pity'],
-            'fate_pity': result.get('fate_pity', 0),
+                'is_up': result['is_up'][i],
+                'is_four_star_up': result['is_four_star_up'][i],
+                'capture_minguang': result['capture_minguang'][i]
+            })
+        
+        return jsonify({
+            'results': results,
+            'new_pity': result['new_pity'],
+            'current_pity': result['new_pity'],  # 添加 current_pity 字段以兼容前端
+            'new_four_star_pity': result['new_four_star_pity'],
             'avg_count': result['avg_count'],
             'up_count': result['up_count'],
-            'fate_count': result.get('fate_count', 0),
+            'four_star_up_count': result.get('four_star_up_count', 0),
+            'four_star_avg_count': result.get('four_star_avg_count', 0),
+            'four_star_up_1_count': result.get('four_star_up_1_count', 0),
+            'four_star_up_2_count': result.get('four_star_up_2_count', 0),
+            'four_star_up_3_count': result.get('four_star_up_3_count', 0),
+            'up_pity': result['up_pity'],
+            'start_up_pity': result['start_up_pity'],
+            'total_pulls': result['total_pulls'],
+            'guarantee_up': result['guarantee_up'],
+            'guarantee_four_star_up': result['guarantee_four_star_up'],
+            'migu_counter': result['migu_counter'],
+            'guarantee_capture_minguang': result['guarantee_capture_minguang'],
+            'capture_minguang_count': result['capture_minguang_count']
+        })
+
+    def process_weapon_result(self, result):
+        """处理武器单抽结果，转换为前端需要的格式"""
+        return jsonify({
+            'star': 5 if result['results'][0] else (4 if result['four_star_results'][0] else 3),
+            'is_up': result['is_up'][0],
+            'is_four_star_up': result['is_four_star_up'][0],
+            'new_pity': result['new_pity'],
+            'new_four_star_pity': result['new_four_star_pity'],
+            'used_prob': result['used_probs'][0],
+            'avg_count': result['avg_count'],
+            'up_count': result['up_count'],
+            'fate_count': result['fate_count'],
+            'up_pity': result['up_pity'],
+            'start_up_pity': result['start_up_pity'],
+            'total_pulls': result['total_pulls'],
             'guarantee_up': result['guarantee_up'],
             'fate_point': result['fate_point'],
             'is_fate_guaranteed': result['is_fate_guaranteed']
-        }
-        if len(result['results']) == len(result['is_up']) == len(result['used_probs']) == len(result['is_fate']):
-            for i, (is_5star, is_up, prob, is_fate) in enumerate(zip(result['results'], result['is_up'], result['used_probs'], result['is_fate'])):
-                if is_5star:
-                    star = 5
-                    if is_up:
-                        name = 'UP武器'
-                    else:
-                        name = '常驻武器'
-                else:
-                    # 简化处理，不区分3星和4星，统一标注为3/4星
-                    star = 4
-                    name = '3/4星'
-                    is_fate = False
-                response_data['results'].append({
-                    'star': star,
-                    'name': name,
-                    'is_fate': is_fate,
-                    'probability': prob
-                })
-        return jsonify(response_data)
+        })
+
+    def process_weapon_ten_result(self, result):
+        """处理武器十连结果，转换为前端需要的格式"""
+        return jsonify({
+            'results': result['results'],
+            'four_star_results': result['four_star_results'],
+            'is_up': result['is_up'],
+            'is_four_star_up': result['is_four_star_up'],
+            'new_pity': result['new_pity'],
+            'new_four_star_pity': result['new_four_star_pity'],
+            'used_probs': result['used_probs'],
+            'avg_count': result['avg_count'],
+            'up_count': result['up_count'],
+            'fate_count': result['fate_count'],
+            'up_pity': result['up_pity'],
+            'start_up_pity': result['start_up_pity'],
+            'total_pulls': result['total_pulls'],
+            'guarantee_up': result['guarantee_up'],
+            'fate_point': result['fate_point'],
+            'is_fate_guaranteed': result['is_fate_guaranteed']
+        })
+
 
 # 创建服务器实例
 server = GachaServer()
 
-# 注册路由
 @app.route('/api/gacha', methods=['POST'])
 def handle_gacha():
+    """处理抽卡请求"""
     return server.handle_gacha()
 
 @app.route('/api/goal_probability', methods=['POST'])
 def handle_goal_probability():
+    """根据资源与目标，估算达成目标概率（蒙特卡洛模拟）"""
     return server.handle_goal_probability()
 
 @app.route('/api/required_pulls_for_95_percent', methods=['POST'])
 def handle_required_pulls_for_95_percent():
+    """计算达成目标所需的抽数（95%置信度）"""
     return server.handle_required_pulls_for_95_percent()
 
 @app.route('/api/required_pulls_for_50_percent', methods=['POST'])
 def handle_required_pulls_for_50_percent():
+    """计算达成目标所需的抽数（50%置信度，中位数）"""
     return server.handle_required_pulls_for_50_percent()
 
 @app.route('/api/shutdown', methods=['POST'])
 def shutdown():
-    return server.shutdown()
+    """关闭服务器"""
+    import os
+    import signal
+    import sys
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is not None:
+        # 使用Werkzeug的内置关闭方法
+        func()
+        return jsonify({'message': 'Server shutting down...'})
+    else:
+        # 如果不是运行在Werkzeug服务器上，使用信号关闭
+        response = jsonify({'message': 'Server shutting down...'})
+        # 在后台线程中关闭服务器
+        import threading
+        def shutdown_server():
+            import time
+            time.sleep(0.1)  # 等待响应发送完成
+            if os.name == 'nt':  # Windows系统
+                os._exit(0)  # 强制退出进程
+            else:  # Unix系统
+                os.kill(os.getpid(), signal.SIGINT)  # 发送中断信号
+        threading.Thread(target=shutdown_server).start()
+        return response
+
 
 @app.route('/api/')
-def index():
-    return server.index()
+def api_info():
+    """API信息"""
+    return jsonify({
+        'message': 'Gacha Simulator API',
+        'endpoints': [
+            '/api/gacha',
+            '/api/goal_probability',
+            '/api/required_pulls_for_95_percent',
+            '/api/required_pulls_for_50_percent',
+            '/api/shutdown'
+        ]
+    })
+
 
 if __name__ == '__main__':
-    """启动服务器"""
-    port = 8888
-    print(f"[INFO] Flask服务器启动在 http://localhost:{port}")
-    print("[INFO] 后端API服务已启动")
-    print(f"[INFO] 进程ID: {os.getpid()}")
-    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+    print("Starting Gacha Simulator Server...")
+    print("API endpoints:")
+    print("  - POST /api/gacha")
+    print("  - POST /api/goal_probability")
+    print("  - POST /api/required_pulls_for_95_percent")
+    print("  - POST /api/required_pulls_for_50_percent")
+    print("  - POST /api/shutdown")
+    print("  - GET  /api/")
+    app.run(host='0.0.0.0', port=8888, debug=True)

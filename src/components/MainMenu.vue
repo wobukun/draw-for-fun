@@ -3,6 +3,7 @@
     <h1>欢迎使用，Let's start！</h1>
     <div class="menu-container">
       <button @click="goToCharacterGacha" class="menu-button start-button">角色活动祈愿</button>
+      <button @click="goToCharacterGacha2" class="menu-button character2-button">角色活动祈愿-2</button>
       <button @click="goToWeaponGacha" class="menu-button weapon-button">武器活动祈愿</button>
       <button @click="goToGoalProbability" class="menu-button probability-button">抽取概率计算（Beta）</button>
       <button @click="goToHelpPage" class="menu-button help-button">查看帮助</button>
@@ -18,12 +19,15 @@ export default {
   data() {
     return {
       // 版本号，可在此处方便修改
-      version: '0.3.2'
+      version: '0.4.0'
     }
   },
   methods: {
     goToCharacterGacha() {
       this.$router.push('/character')
+    },
+    goToCharacterGacha2() {
+      this.$router.push('/character-2')
     },
     goToWeaponGacha() {
       this.$router.push('/weapon')
@@ -185,6 +189,16 @@ h1 {
 .start-button:hover {
   background: linear-gradient(135deg, #fad0c4 0%, #ff9a9e 100%);
   box-shadow: 0 10px 24px rgba(255, 154, 158, 0.4);
+}
+
+.character2-button {
+  background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+  box-shadow: 0 6px 16px rgba(255, 107, 157, 0.3);
+}
+
+.character2-button:hover {
+  background: linear-gradient(135deg, #c44569 0%, #ff6b9d 100%);
+  box-shadow: 0 10px 24px rgba(255, 107, 157, 0.4);
 }
 
 .weapon-button {
