@@ -165,8 +165,8 @@ class GoalProbabilityCalculator:
             return True
 
         # 减少模块属性访问开销
-        CharacterGachaSimulator = draw_character_module.CharacterGachaSimulator
-        WeaponGachaSimulator = draw_weapon_module.WeaponGachaSimulator
+        CharacterWishSimulator = draw_character_module.CharacterWishSimulator
+        WeaponWishSimulator = draw_weapon_module.WeaponWishSimulator
 
         # 分离 seed，避免角色/武器强相关
         rng = np.random.default_rng(seed)
@@ -174,10 +174,10 @@ class GoalProbabilityCalculator:
         seed_weap = int(rng.integers(0, 2**31 - 1))
 
         # 创建模拟器实例
-        char_sim = CharacterGachaSimulator(pity=start.character_pity, seed=seed_char)
+        char_sim = CharacterWishSimulator(pity=start.character_pity, seed=seed_char)
         char_sim.guarantee_up = bool(start.character_guarantee_up)
 
-        weap_sim = WeaponGachaSimulator(pity=start.weapon_pity, seed=seed_weap)
+        weap_sim = WeaponWishSimulator(pity=start.weapon_pity, seed=seed_weap)
         weap_sim.guarantee_up = bool(start.weapon_guarantee_up)
         weap_sim.fate_point = int(start.weapon_fate_point)
         weap_sim.is_fate_guaranteed = bool(start.weapon_is_fate_guaranteed)
@@ -189,7 +189,8 @@ class GoalProbabilityCalculator:
         if strategy == "character_then_weapon":
             # 抽取角色
             while remaining > 0 and got_char < need_char:
-                success, _, _, is_up, _ = char_sim.draw_once()  # 接收5个返回值，忽略第5个
+                is_5star, _, _, _, _, is_up, _, _, _ = char_sim.draw_once()  # 接收9个返回值，取需要的部分
+                success = is_5star
                 remaining -= 1
                 if success and is_up:
                     got_char += 1
@@ -217,7 +218,8 @@ class GoalProbabilityCalculator:
                         return True
             # 抽取角色
             while remaining > 0 and got_char < need_char:
-                success, _, _, is_up, _ = char_sim.draw_once()  # 接收5个返回值，忽略第5个
+                is_5star, _, _, _, _, is_up, _, _, _ = char_sim.draw_once()  # 接收9个返回值，取需要的部分
+                success = is_5star
                 remaining -= 1
                 if success and is_up:
                     got_char += 1
@@ -382,9 +384,9 @@ class GoalProbabilityCalculator:
         """
         # 导入必要的模块
         if draw_character_module is None:
-            import backend.gacha.draw_character as draw_character_module
+            import backend.wish.CharacterWish as draw_character_module
         if draw_weapon_module is None:
-            import backend.gacha.draw_weapon as draw_weapon_module
+            import backend.wish.WeaponWish as draw_weapon_module
         if start is None:
             start = StartState()
 
@@ -495,9 +497,9 @@ class GoalProbabilityCalculator:
         """
         # 导入必要的模块
         if draw_character_module is None:
-            import backend.gacha.draw_character as draw_character_module
+            import backend.wish.CharacterWish as draw_character_module
         if draw_weapon_module is None:
-            import backend.gacha.draw_weapon as draw_weapon_module
+            import backend.wish.WeaponWish as draw_weapon_module
         if start is None:
             start = StartState()
 

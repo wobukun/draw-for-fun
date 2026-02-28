@@ -174,7 +174,7 @@ export default {
         
         // 同时处理网络请求和固定延迟
         const [response] = await Promise.all([
-          axios.post('/api/gacha', {
+          axios.post('/api/wish', {
             mode: 'weapon',
             action: 'one',
             current_pity: this.result.current_pity || 0,
@@ -221,7 +221,7 @@ export default {
         
         // 同时处理网络请求和固定延迟
         const [response] = await Promise.all([
-          axios.post('/api/gacha', {
+          axios.post('/api/wish', {
             mode: 'weapon',
             action: 'ten',
             current_pity: this.result.current_pity || 0,

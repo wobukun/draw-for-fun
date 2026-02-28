@@ -59,7 +59,7 @@ FIVE_STAR_UP_CHARACTER = '5星UP角色-2'  # 本期5星UP角色-2
 FOUR_STAR_UP_CHARACTERS = ['4星UP角色-1', '4星UP角色-2', '4星UP角色-3']  # 本期4星UP角色
 
 
-class CharacterGachaSimulator2:
+class CharacterWishSimulator2:
     """封装角色活动祈愿-2抽卡逻辑的类。
 
     属性:

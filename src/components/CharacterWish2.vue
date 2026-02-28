@@ -1,24 +1,14 @@
 <template>
-  <div class="weapon-gacha">
+  <div class="character-gacha">
     <div class="content-container">
-      <h1>武器活动祈愿</h1>
+      <h1>角色活动祈愿-2</h1>
       <div class="gacha-buttons">
         <button @click="startGacha" class="gacha-button start-button">开始</button>
         <button @click="showAutoSimulation" class="gacha-button auto-button">自动模拟</button>
         <button @click="goBack" class="gacha-button back-button">返回</button>
       </div>
       
-      <!-- 抽卡结果 -->
-      <div v-if="pullResults.length > 0" class="pull-results">
-        <h2>本次抽卡结果</h2>
-        <div class="results-container">
-          <div v-for="(result, index) in pullResults" :key="index" class="result-item" :class="`star-${result.star}`">
-            <div class="result-star">{{ result.star }}★</div>
-            <div class="result-name" v-if="result.star === 5" v-html="result.is_fate ? '定轨' : (result.name.includes('常驻') ? '常驻' : 'UP<br>非定轨')"></div>
-            <div class="result-name" v-else>{{ result.name }}</div>
-          </div>
-        </div>
-      </div>
+
     </div>
     
     <!-- 自动模拟设置 -->
@@ -28,7 +18,7 @@
         <h2>自动模拟设置</h2>
         <div class="form-group">
           <label for="sim-count">模拟抽取次数：</label>
-          <input type="number" id="sim-count" v-model.number="simCount" min="1" max="20000000" value="1000">
+          <input type="number" id="sim-count" v-model.number="simCount" min="0" max="10000000" value="1000" title="">
         </div>
         <div class="modal-buttons">
           <button @click="performAutoSimulation" class="modal-button">开始模拟</button>
@@ -54,10 +44,9 @@
 import axios from 'axios'
 
 export default {
-  name: 'WeaponGacha',
+  name: 'CharacterWish2',
   data() {
     return {
-      pullResults: [],
       showAutoSim: false,
       simCount: 1000,
       isLoading: false,
@@ -68,7 +57,7 @@ export default {
   methods: {
     startGacha() {
       // 直接跳转到结果页面
-      this.$router.push('/weapon-result')
+      this.$router.push('/character-result-2')
     },
     showAutoSimulation() {
       this.showAutoSim = true
@@ -78,17 +67,11 @@ export default {
     },
     performAutoSimulation() {
       // 验证模拟次数是否在有效范围内
-      if (this.simCount < 1 || this.simCount > 20000000) {
-        alert('模拟次数必须在1-20000000之间，请重新输入');
+      if (this.simCount < 0 || this.simCount > 10000000) {
+        alert('模拟次数必须在0-10000000之间，请重新输入');
         return;
       }
       
-      // 当模拟次数>=10000000时，提示用户抽取次数较大可能影响性能
-      if (this.simCount >= 10000000) {
-        if (!confirm('抽取次数较大，可能影响性能，是否继续？')) {
-          return;
-        }
-      }
       
       this.isLoading = true
       this.loadingProgress = 0
@@ -102,8 +85,8 @@ export default {
       }, 300)
       
       // 提交自动模拟请求
-      axios.post('/api/gacha', {
-        mode: 'weapon',
+      axios.post('/api/wish', {
+        mode: 'character2',
         action: 'auto',
         count: this.simCount,
         start_pity: 0
@@ -116,7 +99,7 @@ export default {
         setTimeout(() => {
           this.isLoading = false
           this.$router.push({
-            path: '/weapon-simulation-result',
+            path: '/character-simulation-result-2',
             query: { result: JSON.stringify(response.data) }
           })
         }, 500)
@@ -135,7 +118,7 @@ export default {
 </script>
 
 <style scoped>
-.weapon-gacha {
+.character-gacha {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -216,18 +199,18 @@ h1 {
 }
 
 .start-button {
-  background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+  background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
   color: #2c3e50;
   font-size: 20px;
   padding: 20px 60px;
-  box-shadow: 0 6px 16px rgba(132, 250, 176, 0.3);
+  box-shadow: 0 6px 16px rgba(255, 154, 158, 0.3);
   min-width: 280px;
   border: none;
 }
 
 .start-button:hover {
-  background: linear-gradient(135deg, #8fd3f4 0%, #84fab0 100%);
-  box-shadow: 0 10px 24px rgba(132, 250, 176, 0.4);
+  background: linear-gradient(135deg, #fad0c4 0%, #ff9a9e 100%);
+  box-shadow: 0 10px 24px rgba(255, 154, 158, 0.4);
 }
 
 .auto-button {
@@ -254,233 +237,7 @@ h1 {
   box-shadow: 0 10px 24px rgba(255, 255, 255, 0.4);
 }
 
-.pull-results {
-  width: 100%;
-  max-width: 960px;
-  margin-bottom: 20px;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
 
-.pull-results h2 {
-  color: #2c3e50;
-  margin-bottom: 15px;
-  font-size: 18px;
-  text-align: center;
-  font-weight: 600;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.results-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: center;
-  align-items: center;
-  min-height: 300px;
-  width: 920px;
-  margin: 0 auto 30px;
-  padding: 20px;
-  position: relative;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 249, 250, 0.9) 100%);
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  border: 1px solid #e3f2fd;
-}
-
-.results-container::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
-  background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #f5576c, #4facfe, #00f2fe);
-  border-radius: 16px;
-  z-index: -1;
-  opacity: 0;
-  transition: opacity 0.5s ease;
-}
-
-.results-container:hover::before {
-  opacity: 0.1;
-}
-
-.result-item {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  width: 164px;
-  height: 110px;
-  transition: all 0.4s ease;
-  border: 2px solid transparent;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.result-item:hover {
-  transform: translateY(-6px) scale(1.05);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
-}
-
-.result-item::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.result-item:hover::after {
-  opacity: 1;
-}
-
-/* 3星结果样式 */
-.result-item.star-3 {
-  border-color: #e0e0e0;
-  background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
-}
-
-.result-item.star-3::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: #95a5a6;
-}
-
-/* 4星结果样式 */
-.result-item.star-4 {
-  border-color: #e1bee7;
-  background: linear-gradient(135deg, #f3e5f5 0%, #ffffff 100%);
-  animation: pulse 3s ease-in-out infinite;
-}
-
-.result-item.star-4::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: #9b59b6;
-}
-
-/* 5星结果样式 */
-.result-item.star-5 {
-  border-color: #ffd700;
-  background: linear-gradient(135deg, #fff8e1 0%, #ffffff 100%);
-  animation: glow-pulse 2s ease-in-out infinite;
-  box-shadow: 0 0 20px rgba(243, 156, 18, 0.3);
-}
-
-.result-item.star-5::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: linear-gradient(90deg, #f39c12, #ffb300, #f39c12);
-  animation: shine 2s ease-in-out infinite;
-}
-
-.result-item.star-5:hover {
-  transform: translateY(-8px) scale(1.05);
-  box-shadow: 0 16px 32px rgba(243, 156, 18, 0.4);
-}
-
-.result-star {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 10px;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
-  position: relative;
-  z-index: 1;
-}
-
-.star-3 .result-star {
-  color: #95a5a6;
-}
-
-.star-4 .result-star {
-  color: #9b59b6;
-  font-size: 20px;
-  text-shadow: 0 0 10px rgba(155, 89, 182, 0.3);
-}
-
-.star-5 .result-star {
-  color: #f39c12;
-  font-size: 24px;
-  text-shadow: 0 0 15px rgba(243, 156, 18, 0.5);
-  animation: star-glow 2s ease-in-out infinite alternate;
-}
-
-.result-name {
-  font-size: 14px;
-  color: #2c3e50;
-  margin-bottom: 10px;
-  font-weight: 600;
-  position: relative;
-  z-index: 1;
-}
-
-.star-5 .result-name {
-  color: #d35400;
-  font-weight: 700;
-  font-size: 15px;
-}
-
-/* 动画效果 */
-@keyframes star-glow {
-  from {
-    text-shadow: 0 0 10px #f39c12, 0 0 20px #f39c12;
-  }
-  to {
-    text-shadow: 0 0 20px #f39c12, 0 0 30px #f39c12, 0 0 40px #f39c12;
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    box-shadow: 0 4px 12px rgba(155, 89, 182, 0.2);
-  }
-  50% {
-    box-shadow: 0 8px 24px rgba(155, 89, 182, 0.4);
-  }
-}
-
-@keyframes glow-pulse {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(243, 156, 18, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(243, 156, 18, 0.6), 0 0 40px rgba(243, 156, 18, 0.3);
-  }
-}
-
-@keyframes shine {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
 
 .auto-simulation {
   position: fixed;
@@ -559,6 +316,12 @@ h1 {
   border-color: #3498db;
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
   background: white;
+}
+
+.form-group input:hover::-webkit-inner-spin-button,
+.form-group input:hover::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .modal-buttons {

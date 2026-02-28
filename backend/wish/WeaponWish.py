@@ -1,5 +1,5 @@
 """
-Weapon Gacha Simulator — 武器抽卡模拟器
+ 武器活动祈愿抽卡模拟器
 
 模块功能说明：
 - 支持单抽、十连与自动批量模拟（`auto` 模式）。
@@ -39,7 +39,7 @@ PITY_THRESHOLD = 63
 PITY_INCREASE = 0.07
 
 
-class WeaponGachaSimulator:
+class WeaponWishSimulator:
     """封装抽武器逻辑的类。
 
     属性:
@@ -193,7 +193,9 @@ class WeaponGachaSimulator:
         start_pity = self.pity
         start_up_pity = self.up_pity
         ok, new_pity, prob, is_up, is_fate = self.draw_once()
-        return {"results": [ok], "new_pity": new_pity, "used_probs": [prob], "is_up": [is_up], "is_fate": [is_fate],
+        # 武器池没有4星判定，但为了兼容性添加相关字段
+        return {"results": [ok], "four_star_results": [False], "new_pity": new_pity, "new_four_star_pity": 0,
+            "used_probs": [prob], "is_up": [is_up], "is_fate": [is_fate], "is_four_star_up": [False],
             "avg_count": self.avg_count, "up_count": self.up_count, "fate_count": self.fate_count,
             "up_pity": self.up_pity, "start_up_pity": start_up_pity,
             "start_pity": start_pity, "total_pulls": self.total_pulls,
@@ -208,7 +210,11 @@ class WeaponGachaSimulator:
         start_pity = self.pity
         start_up_pity = self.up_pity
         results, new_pity, probs, is_up_list, is_fate_list = self.draw_n(10)
-        return {"results": results, "new_pity": new_pity, "used_probs": probs, "is_up": is_up_list, "is_fate": is_fate_list,
+        # 武器池没有4星判定，但为了兼容性添加相关字段
+        four_star_results = [False] * 10
+        is_four_star_up = [False] * 10
+        return {"results": results, "four_star_results": four_star_results, "new_pity": new_pity, "new_four_star_pity": 0,
+            "used_probs": probs, "is_up": is_up_list, "is_fate": is_fate_list, "is_four_star_up": is_four_star_up,
             "avg_count": self.avg_count, "up_count": self.up_count, "fate_count": self.fate_count,
             "fate_pity": self.fate_pity,
             "up_pity": self.up_pity, "start_up_pity": start_up_pity,

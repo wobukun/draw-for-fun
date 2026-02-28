@@ -2,9 +2,9 @@ import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import MainMenu from './components/MainMenu.vue'
-import CharacterGacha from './components/CharacterGacha.vue'
-import CharacterGacha2 from './components/CharacterGacha2.vue'
-import WeaponGacha from './components/WeaponGacha.vue'
+import CharacterWish from './components/CharacterWish.vue'
+import CharacterWish2 from './components/CharacterWish2.vue'
+import WeaponWish from './components/WeaponWish.vue'
 import CharacterPullResult from './components/CharacterPullResult.vue'
 import CharacterPullResult2 from './components/CharacterPullResult2.vue'
 import WeaponPullResult from './components/WeaponPullResult.vue'
@@ -25,17 +25,17 @@ const routes = [
   {
     path: '/character',
     name: 'CharacterGacha',
-    component: CharacterGacha
+    component: CharacterWish
   },
   {
     path: '/character-2',
     name: 'CharacterGacha2',
-    component: CharacterGacha2
+    component: CharacterWish2
   },
   {
     path: '/weapon',
     name: 'WeaponGacha',
-    component: WeaponGacha
+    component: WeaponWish
   },
   {
     path: '/character-result',

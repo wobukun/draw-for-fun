@@ -44,7 +44,7 @@
 import axios from 'axios'
 
 export default {
-  name: 'CharacterGacha',
+  name: 'CharacterWish',
   data() {
     return {
       showAutoSim: false,
@@ -85,7 +85,7 @@ export default {
       }, 300)
       
       // 提交自动模拟请求
-      axios.post('/api/gacha', {
+      axios.post('/api/wish', {
         mode: 'character',
         action: 'auto',
         count: this.simCount,

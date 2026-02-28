@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Flask 后端服务器 - 抽卡模拟器
+"""Flask 后端服务器 - 祈愿模拟器
 
 简要说明：
-- 使用 Flask 框架实现的抽卡模拟器后端服务
-- 提供角色和武器的抽卡模拟 API
+- 使用 Flask 框架实现的祈愿模拟器后端服务
+- 提供角色和武器的祈愿模拟 API
 - 支持单抽、十连和自动模拟功能
 
 主要API：
-- POST /api/gacha - 处理抽卡请求
+- POST /api/wish - 处理祈愿请求
 - POST /api/shutdown - 关闭服务器
 """
 
@@ -27,10 +27,10 @@ sys.path.insert(0, project_root)
 sys.path.insert(0, backend_dir)
 
 # 直接指定抽卡模拟器模块的路径
-draw_character_path = os.path.join(backend_dir, "gacha", "draw_character.py")
-draw_character_2_path = os.path.join(backend_dir, "gacha", "draw_character_2.py")
-draw_weapon_path = os.path.join(backend_dir, "gacha", "draw_weapon.py")
-goal_probability_path = os.path.join(backend_dir, "gacha", "goal_probability.py")
+CharacterWish_path = os.path.join(backend_dir, "wish", "CharacterWish.py")
+CharacterWish2_path = os.path.join(backend_dir, "wish", "CharacterWish2.py")
+WeaponWish_path = os.path.join(backend_dir, "wish", "WeaponWish.py")
+GoalProbability_path = os.path.join(backend_dir, "wish", "GoalProbability.py")
 
 # 动态导入模块
 import importlib.util
@@ -43,29 +43,29 @@ def import_module_from_path(module_name, file_path):
     return module
 
 # 导入抽卡模拟器模块
-draw_character = import_module_from_path("draw_character", draw_character_path)
-draw_character_2 = import_module_from_path("draw_character_2", draw_character_2_path)
-draw_weapon = import_module_from_path("draw_weapon", draw_weapon_path)
-goal_probability = import_module_from_path("goal_probability", goal_probability_path)
+CharacterWish = import_module_from_path("CharacterWish", CharacterWish_path)
+CharacterWish2 = import_module_from_path("CharacterWish2", CharacterWish2_path)
+WeaponWish = import_module_from_path("WeaponWish", WeaponWish_path)
+GoalProbability = import_module_from_path("GoalProbability", GoalProbability_path)
 
-CharacterGachaSimulator = draw_character.CharacterGachaSimulator
-CharacterGachaSimulator2 = draw_character_2.CharacterGachaSimulator2
-WeaponGachaSimulator = draw_weapon.WeaponGachaSimulator
+CharacterWishSimulator = CharacterWish.CharacterWishSimulator
+CharacterWishSimulator2 = CharacterWish2.CharacterWishSimulator2
+WeaponWishSimulator = WeaponWish.WeaponWishSimulator
 
 app = Flask(__name__)
 CORS(app)  # 启用 CORS，允许跨域请求
 
-class GachaServer:
-    """抽卡服务器类"""
+class WishServer:
+    """祈愿服务器类"""
     
     def __init__(self):
-        """初始化抽卡服务器"""
+        """初始化祈愿服务器"""
         self.character_simulator = None
         self.character_simulator_2 = None
         self.weapon_simulator = None
     
-    def handle_gacha(self):
-        """处理抽卡请求"""
+    def handle_wish(self):
+        """处理祈愿请求"""
         try:
             data = request.json
             mode = data.get('mode')
@@ -73,13 +73,13 @@ class GachaServer:
             
             if mode == 'character':
                 # 角色活动祈愿-1
-                return self._handle_character_gacha(data, action, CharacterGachaSimulator)
+                return self._handle_character_wish(data, action, CharacterWishSimulator)
             elif mode == 'character2':
                 # 角色活动祈愿-2
-                return self._handle_character_gacha(data, action, CharacterGachaSimulator2)
+                return self._handle_character_wish(data, action, CharacterWishSimulator2)
             elif mode == 'weapon':
-                # 武器抽卡
-                # 从请求中获取抽卡进度参数
+                # 武器祈愿
+                # 从请求中获取祈愿进度参数
                 current_pity = data.get('current_pity', 0)
                 up_pity = data.get('up_pity', 0)
                 fate_pity = data.get('fate_pity', 0)
@@ -91,8 +91,8 @@ class GachaServer:
                 is_fate_guaranteed = data.get('is_fate_guaranteed', False)
                 total_pulls = data.get('total_pulls', 0)
                 
-                # 创建新的模拟器实例，使用请求中的抽卡进度参数
-                sim = WeaponGachaSimulator()
+                # 创建新的模拟器实例，使用请求中的祈愿进度参数
+                sim = WeaponWishSimulator()
                 sim.pity = current_pity
                 sim.up_pity = up_pity
                 sim.fate_pity = fate_pity
@@ -116,18 +116,18 @@ class GachaServer:
                     # 武器自动模拟
                     count = data.get('count', 1000)
                     start_pity = data.get('start_pity', 0)
-                    sim = WeaponGachaSimulator(start_pity)
+                    sim = WeaponWishSimulator(start_pity)
                     result = sim.simulate_pulls(count)
                     result['total_pulls'] = count
                     return jsonify(result)
             else:
                 return jsonify({'error': 'Unknown mode'}), 400
         except Exception as e:
-            app.logger.error(f"Error handling gacha request: {e}")
+            app.logger.error(f"Error handling wish request: {e}")
             return jsonify({'error': str(e)}), 500
 
-    def _handle_character_gacha(self, data, action, SimulatorClass):
-        """处理角色抽卡的通用方法"""
+    def _handle_character_wish(self, data, action, SimulatorClass):
+        """处理角色祈愿的通用方法"""
         # 从请求中获取抽卡进度参数
         current_pity = data.get('current_pity', 0)
         up_pity = data.get('up_pity', 0)
@@ -137,7 +137,7 @@ class GachaServer:
         total_pulls = data.get('total_pulls', 0)
         migu_counter = data.get('migu_counter', 0)
         
-        # 创建新的模拟器实例，使用请求中的抽卡进度参数
+        # 创建新的模拟器实例，使用请求中的祈愿进度参数
         sim = SimulatorClass()
         sim.pity = current_pity
         sim.four_star_pity = data.get('four_star_pity', 0)
@@ -155,10 +155,10 @@ class GachaServer:
         sim.migu_counter = migu_counter
         
         # 获取5星UP角色名称（从模块中获取）
-        if SimulatorClass == CharacterGachaSimulator2:
-            five_star_up_name = draw_character_2.FIVE_STAR_UP_CHARACTER
+        if SimulatorClass == CharacterWishSimulator2:
+            five_star_up_name = CharacterWish2.FIVE_STAR_UP_CHARACTER
         else:
-            five_star_up_name = draw_character.FIVE_STAR_UP_CHARACTER
+            five_star_up_name = CharacterWish.FIVE_STAR_UP_CHARACTER
         
         if action == 'one':
             # 角色单抽
@@ -194,7 +194,7 @@ class GachaServer:
             if 'target_character_copies' in data:
                 character_target_copies = int(data.get('target_character_copies', 0))
             elif 'target_character_constellation' in data:
-                character_target_copies = goal_probability.GoalProbabilityCalculator.constellation_to_copies(
+                character_target_copies = GoalProbability.GoalProbabilityCalculator.constellation_to_copies(
                     int(data.get('target_character_constellation', 0))
                 )
             else:
@@ -204,7 +204,7 @@ class GachaServer:
             if 'target_weapon_copies' in data:
                 weapon_target_copies = int(data.get('target_weapon_copies', 0))
             elif 'target_weapon_refinement' in data:
-                weapon_target_copies = goal_probability.GoalProbabilityCalculator.refinement_to_copies(
+                weapon_target_copies = GoalProbability.GoalProbabilityCalculator.refinement_to_copies(
                     int(data.get('target_weapon_refinement', 0))
                 )
             else:
@@ -221,21 +221,25 @@ class GachaServer:
                 return jsonify({'error': 'trials must be >= 100'}), 400
 
             # 执行蒙特卡洛模拟
-            calculator = goal_probability.GoalProbabilityCalculator()
+            calculator = GoalProbability.GoalProbabilityCalculator()
             
             # 根据请求中的 mode 参数选择模拟器类型
             mode = data.get('mode', 'character')
             if mode == 'character2':
-                simulator_class = CharacterGachaSimulator2
+                simulator_class = CharacterWishSimulator2
             else:
-                simulator_class = CharacterGachaSimulator
+                simulator_class = CharacterWishSimulator
             
-            result = calculator.calculate_goal_probability(
-                resources=resources,
+            result = calculator.estimate_goal_probability(
+                pulls=resources,
                 character_target_copies=character_target_copies,
                 weapon_target_copies=weapon_target_copies,
                 trials=trials,
-                character_simulator_class=simulator_class
+                strategy="character_then_weapon",
+                seed=None,
+                start=GoalProbability.StartState(),
+                draw_character_module=CharacterWish,
+                draw_weapon_module=WeaponWish
             )
             
             return jsonify(result)
@@ -252,7 +256,7 @@ class GachaServer:
             if 'target_character_copies' in data:
                 character_target_copies = int(data.get('target_character_copies', 0))
             elif 'target_character_constellation' in data:
-                character_target_copies = goal_probability.GoalProbabilityCalculator.constellation_to_copies(
+                character_target_copies = GoalProbability.GoalProbabilityCalculator.constellation_to_copies(
                     int(data.get('target_character_constellation', 0))
                 )
             else:
@@ -261,7 +265,7 @@ class GachaServer:
             if 'target_weapon_copies' in data:
                 weapon_target_copies = int(data.get('target_weapon_copies', 0))
             elif 'target_weapon_refinement' in data:
-                weapon_target_copies = goal_probability.GoalProbabilityCalculator.refinement_to_copies(
+                weapon_target_copies = GoalProbability.GoalProbabilityCalculator.refinement_to_copies(
                     int(data.get('target_weapon_refinement', 0))
                 )
             else:
@@ -278,21 +282,21 @@ class GachaServer:
                 return jsonify({'error': 'trials must be >= 100'}), 400
 
             # 执行蒙特卡洛模拟
-            calculator = goal_probability.GoalProbabilityCalculator()
+            calculator = GoalProbability.GoalProbabilityCalculator()
             
             # 根据请求中的 mode 参数选择模拟器类型
             mode = data.get('mode', 'character')
             if mode == 'character2':
-                simulator_class = CharacterGachaSimulator2
+                simulator_class = CharacterWishSimulator2
             else:
-                simulator_class = CharacterGachaSimulator
+                simulator_class = CharacterWishSimulator
             
-            result = calculator.calculate_required_pulls_for_confidence(
-                character_target_copies=character_target_copies,
-                weapon_target_copies=weapon_target_copies,
-                confidence=0.95,
-                trials=trials,
-                character_simulator_class=simulator_class
+            result = calculator.calculate_required_pulls_for_95_percent_probability(
+                character_target_constellation=data.get('target_character_constellation', 0),
+                weapon_target_refinement=data.get('target_weapon_refinement', 0),
+                strategy="character_then_weapon",
+                draw_character_module=CharacterWish,
+                draw_weapon_module=WeaponWish
             )
             
             return jsonify(result)
@@ -309,7 +313,7 @@ class GachaServer:
             if 'target_character_copies' in data:
                 character_target_copies = int(data.get('target_character_copies', 0))
             elif 'target_character_constellation' in data:
-                character_target_copies = goal_probability.GoalProbabilityCalculator.constellation_to_copies(
+                character_target_copies = GoalProbability.GoalProbabilityCalculator.constellation_to_copies(
                     int(data.get('target_character_constellation', 0))
                 )
             else:
@@ -318,7 +322,7 @@ class GachaServer:
             if 'target_weapon_copies' in data:
                 weapon_target_copies = int(data.get('target_weapon_copies', 0))
             elif 'target_weapon_refinement' in data:
-                weapon_target_copies = goal_probability.GoalProbabilityCalculator.refinement_to_copies(
+                weapon_target_copies = GoalProbability.GoalProbabilityCalculator.refinement_to_copies(
                     int(data.get('target_weapon_refinement', 0))
                 )
             else:
@@ -335,21 +339,21 @@ class GachaServer:
                 return jsonify({'error': 'trials must be >= 100'}), 400
 
             # 执行蒙特卡洛模拟
-            calculator = goal_probability.GoalProbabilityCalculator()
+            calculator = GoalProbability.GoalProbabilityCalculator()
             
             # 根据请求中的 mode 参数选择模拟器类型
             mode = data.get('mode', 'character')
             if mode == 'character2':
-                simulator_class = CharacterGachaSimulator2
+                simulator_class = CharacterWishSimulator2
             else:
-                simulator_class = CharacterGachaSimulator
+                simulator_class = CharacterWishSimulator
             
-            result = calculator.calculate_required_pulls_for_confidence(
-                character_target_copies=character_target_copies,
-                weapon_target_copies=weapon_target_copies,
-                confidence=0.50,
-                trials=trials,
-                character_simulator_class=simulator_class
+            result = calculator.calculate_required_pulls_for_50_percent_probability(
+                character_target_constellation=data.get('target_character_constellation', 0),
+                weapon_target_refinement=data.get('target_weapon_refinement', 0),
+                strategy="character_then_weapon",
+                draw_character_module=CharacterWish,
+                draw_weapon_module=WeaponWish
             )
             
             return jsonify(result)
@@ -467,6 +471,7 @@ class GachaServer:
             'is_up': result['is_up'][0],
             'is_four_star_up': result['is_four_star_up'][0],
             'new_pity': result['new_pity'],
+            'current_pity': result['new_pity'],  # 添加 current_pity 字段以兼容前端
             'new_four_star_pity': result['new_four_star_pity'],
             'used_prob': result['used_probs'][0],
             'avg_count': result['avg_count'],
@@ -488,6 +493,7 @@ class GachaServer:
             'is_up': result['is_up'],
             'is_four_star_up': result['is_four_star_up'],
             'new_pity': result['new_pity'],
+            'current_pity': result['new_pity'],  # 添加 current_pity 字段以兼容前端
             'new_four_star_pity': result['new_four_star_pity'],
             'used_probs': result['used_probs'],
             'avg_count': result['avg_count'],
@@ -503,12 +509,12 @@ class GachaServer:
 
 
 # 创建服务器实例
-server = GachaServer()
+server = WishServer()
 
-@app.route('/api/gacha', methods=['POST'])
-def handle_gacha():
-    """处理抽卡请求"""
-    return server.handle_gacha()
+@app.route('/api/wish', methods=['POST'])
+def handle_wish():
+    """处理祈愿请求"""
+    return server.handle_wish()
 
 @app.route('/api/goal_probability', methods=['POST'])
 def handle_goal_probability():
@@ -556,9 +562,9 @@ def shutdown():
 def api_info():
     """API信息"""
     return jsonify({
-        'message': 'Gacha Simulator API',
+        'message': 'Wish Simulator API',
         'endpoints': [
-            '/api/gacha',
+            '/api/wish',
             '/api/goal_probability',
             '/api/required_pulls_for_95_percent',
             '/api/required_pulls_for_50_percent',
@@ -568,9 +574,9 @@ def api_info():
 
 
 if __name__ == '__main__':
-    print("Starting Gacha Simulator Server...")
+    print("Starting Wish Simulator Server...")
     print("API endpoints:")
-    print("  - POST /api/gacha")
+    print("  - POST /api/wish")
     print("  - POST /api/goal_probability")
     print("  - POST /api/required_pulls_for_95_percent")
     print("  - POST /api/required_pulls_for_50_percent")

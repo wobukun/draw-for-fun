@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""抽卡模拟器服务器管理器
+"""祈愿模拟器服务器管理器
 
 简要说明：
-- 抽卡模拟器的服务器管理模块
+- 祈愿模拟器的服务器管理模块
 - 负责管理前端和后端服务器的启动、监控和停止
 - 提供服务器状态检查和进程管理功能
 
@@ -30,8 +30,8 @@ import socket
 # 添加当前目录到系统路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-class GachaServerManager:
-    """抽卡模拟器服务器管理器"""
+class WishServerManager:
+    """祈愿模拟器服务器管理器"""
     
     def __init__(self):
         """初始化服务器管理器"""
