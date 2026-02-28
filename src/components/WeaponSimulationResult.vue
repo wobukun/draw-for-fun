@@ -13,7 +13,7 @@
         <!-- 基本统计信息 -->
         <div class="stats-card">
           <h2>基本统计</h2>
-          <div class="stats-grid">
+          <div class="stats-grid basic-stats">
             <div class="stat-item">
               <div class="stat-label">总抽取次数</div>
               <div class="stat-value">{{ result.total_pulls }}</div>
@@ -23,24 +23,36 @@
               <div class="stat-value">{{ result.total_hits }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">定轨武器数量</div>
-              <div class="stat-value warning">{{ result.fate_count }}</div>
+              <div class="stat-label">5★UP武器-1数</div>
+              <div class="stat-value warning">{{ result.five_star_up_counts?.['5星UP武器-1'] || 0 }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">UP（非定轨）武器数量</div>
-              <div class="stat-value">{{ result.up_count - result.fate_count }}</div>
+              <div class="stat-label">5★UP武器-2数</div>
+              <div class="stat-value warning">{{ result.five_star_up_counts?.['5星UP武器-2'] || 0 }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">常驻武器数量</div>
+              <div class="stat-label">5★常驻武器数</div>
               <div class="stat-value">{{ result.avg_count }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">5★概率</div>
-              <div class="stat-value probability">{{ ((result.total_hits / result.total_pulls) * 100).toFixed(3) }}%</div>
+              <div class="stat-value probability">{{ result.total_pulls > 0 ? ((result.total_hits / result.total_pulls) * 100).toFixed(3) : '0.000' }}%</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">定轨武器概率</div>
-              <div class="stat-value probability">{{ ((result.fate_count / result.total_pulls) * 100).toFixed(3) }}%</div>
+              <div class="stat-label">5★UP概率</div>
+              <div class="stat-value probability">{{ result.total_pulls > 0 ? (((result.up_count || 0) / result.total_pulls) * 100).toFixed(3) : '0.000' }}%</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">4★UP武器数</div>
+              <div class="stat-value four-star-up">{{ result.four_star_up_count || 0 }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">4★常驻武器数</div>
+              <div class="stat-value">{{ result.four_star_avg_count || 0 }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">4★概率</div>
+              <div class="stat-value probability">{{ result.total_pulls > 0 ? (((result.four_star_up_count + result.four_star_avg_count) / result.total_pulls) * 100).toFixed(3) : '0.000' }}%</div>
             </div>
           </div>
         </div>
@@ -48,26 +60,26 @@
         <!-- 数学统计信息 -->
         <div class="stats-card">
           <h2>数学统计</h2>
-          <div class="stats-grid">
+          <div class="stats-grid math-stats">
             <div class="stat-item">
-              <div class="stat-label">抽到定轨武器的平均抽数</div>
-              <div class="stat-value">{{ result.stats.fate_avg_count?.toFixed(2) || 0 }}</div>
+              <div class="stat-label">5★UP武器的平均抽数</div>
+              <div class="stat-value">{{ (result.stats?.avg_count || 0).toFixed(2) }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">抽到定轨武器的中位数抽数</div>
-              <div class="stat-value">{{ result.stats.fate_median_count?.toFixed(2) || 0 }}</div>
+              <div class="stat-label">5★UP武器的中位数抽数</div>
+              <div class="stat-value">{{ (result.stats?.median_count || 0).toFixed(2) }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">定轨武器标准差</div>
-              <div class="stat-value">{{ result.stats.fate_std_count?.toFixed(2) || 0 }}</div>
+              <div class="stat-label">5★UP武器标准差</div>
+              <div class="stat-value">{{ (result.stats?.std_count || 0).toFixed(2) }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">定轨武器最小抽数</div>
-              <div class="stat-value">{{ result.stats.fate_min_count || 0 }}</div>
+              <div class="stat-label">5★UP武器最小抽数</div>
+              <div class="stat-value">{{ result.stats?.min_count || 0 }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">定轨武器最大抽数</div>
-              <div class="stat-value">{{ result.stats.fate_max_count || 0 }}</div>
+              <div class="stat-label">5★UP武器最大抽数</div>
+              <div class="stat-value">{{ result.stats?.max_count || 0 }}</div>
             </div>
           </div>
         </div>
@@ -80,7 +92,7 @@
               <span class="cost">{{ item.cost }}抽</span>
               <div class="cost-bar" :style="{ width: getBarWidth(item.cost), backgroundColor: getBarColor(item.cost) }"></div>
               <span v-if="!item.is_up" class="is-avg">常驻（歪）</span>
-              <span v-else-if="item.is_up && !item.is_fate" class="is-avg">UP（歪）</span>
+              <span v-else class="is-up">{{ simplifyWeaponName(item.weapon_name) || 'UP' }}</span>
             </div>
           </div>
         </div>
@@ -99,6 +111,12 @@ export default {
         total_hits: 0,
         up_count: 0,
         avg_count: 0,
+        five_star_up_counts: {
+          '5星UP武器-1': 0,
+          '5星UP武器-2': 0
+        },
+        four_star_up_count: 0,
+        four_star_avg_count: 0,
         stats: {
           avg_count: 0,
           median_count: 0,
@@ -120,10 +138,15 @@ export default {
         // 限制 five_star_costs 数组长度，优化性能
         const limitedFiveStarCosts = (parsedResult.five_star_costs || []).slice(0, 50)
         
+        // 计算 up_count
+        const upCount = (parsedResult.five_star_up_counts?.['5星UP武器-1'] || 0) + 
+                       (parsedResult.five_star_up_counts?.['5星UP武器-2'] || 0)
+        
         // 合并解析结果和默认值，确保所有必要的属性都存在
         this.result = {
           ...this.result,
           ...parsedResult,
+          up_count: upCount,
           stats: {
             ...this.result.stats,
             ...(parsedResult.stats || {})
@@ -153,6 +176,12 @@ export default {
       } else {
         return '#e74c3c' // 红色
       }
+    },
+    simplifyWeaponName(weaponName) {
+      if (!weaponName) return 'UP'
+      if (weaponName.includes('5星UP武器-1')) return 'UP-1'
+      if (weaponName.includes('5星UP武器-2')) return 'UP-2'
+      return weaponName
     },
     goBack() {
       this.$router.push('/weapon')
@@ -214,17 +243,43 @@ h1 {
 }
 
 .stats-grid {
-  display: flex;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
   gap: 10px;
-  overflow-x: auto;
   width: 100%;
 }
 
+/* 基本统计的10个数据项 */
+.stats-grid.basic-stats {
+  grid-template-rows: auto auto auto;
+}
+
+.stats-grid.basic-stats .stat-item:nth-child(-n+7) {
+  grid-row: 1;
+  grid-column: span 1;
+}
+
+.stats-grid.basic-stats .stat-item:nth-child(n+8) {
+  grid-row: 2;
+  grid-column: span 1;
+}
+
+/* 数学统计的5个数据项 */
+.stats-grid.math-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.stats-grid.math-stats .stat-item {
+  grid-column: span 1;
+  min-width: 150px;
+}
+
 .stats-grid .stat-item {
-  flex: 1;
   min-width: 120px;
-  max-width: 200px;
+  max-width: none;
+  width: 100%;
 }
 
 .stat-item {
@@ -265,6 +320,11 @@ h1 {
   color: #ffc107;
 }
 
+.four-star-up {
+  color: #8b5cf6;
+  text-shadow: 0 1px 2px rgba(139, 92, 246, 0.3);
+}
+
 .failure {
   color: #e74c3c;
 }
@@ -294,6 +354,12 @@ h1 {
 
 .is-avg {
   color: #000000;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.is-up {
+  color: #ffc107;
   font-weight: bold;
   font-size: 14px;
 }

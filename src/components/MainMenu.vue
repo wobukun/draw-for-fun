@@ -19,7 +19,7 @@ export default {
   data() {
     return {
       // 版本号，可在此处方便修改
-      version: '0.4.1'
+      version: '0.5.0'
     }
   },
   methods: {

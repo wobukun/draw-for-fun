@@ -26,6 +26,7 @@
       <div class="modal-overlay" @click="hideAutoSimulation"></div>
       <div class="modal-content">
         <h2>自动模拟设置</h2>
+        <p class="auto-sim-note">自动模拟默认不定轨武器</p>
         <div class="form-group">
           <label for="sim-count">模拟抽取次数：</label>
           <input type="number" id="sim-count" v-model.number="simCount" min="1" max="20000000" value="1000">
@@ -523,11 +524,19 @@ h1 {
 
 .modal-content h2 {
   color: #2c3e50;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   font-size: 22px;
   text-align: center;
   font-weight: 600;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.auto-sim-note {
+  color: #07a8ff;
+  font-size: 16px;
+  text-align: center;
+  margin-bottom: 20px;
+  font-weight: 500;
 }
 
 .form-group {

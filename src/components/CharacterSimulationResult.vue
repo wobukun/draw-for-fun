@@ -72,25 +72,25 @@
         <!-- 数学统计信息 -->
         <div class="stats-card">
           <h2>数学统计</h2>
-          <div class="stats-grid">
+          <div class="stats-grid math-stats">
             <div class="stat-item">
-              <div class="stat-label">抽到UP角色的平均抽数</div>
+              <div class="stat-label">5★UP角色的平均抽数</div>
               <div class="stat-value">{{ (result.stats.avg_count || 0).toFixed(2) }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">抽到UP角色的中位数抽数</div>
+              <div class="stat-label">5★UP角色的中位数抽数</div>
               <div class="stat-value">{{ (result.stats.median_count || 0).toFixed(2) }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">UP角色标准差</div>
+              <div class="stat-label">5★UP角色标准差</div>
               <div class="stat-value">{{ (result.stats.std_count || 0).toFixed(2) }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">UP角色最小抽数</div>
+              <div class="stat-label">5★UP角色最小抽数</div>
               <div class="stat-value">{{ result.stats.min_count || 0 }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">UP角色最大抽数</div>
+              <div class="stat-label">5★UP角色最大抽数</div>
               <div class="stat-value">{{ result.stats.max_count || 0 }}</div>
             </div>
           </div>
@@ -254,6 +254,20 @@ h1 {
   flex: 0 0 calc(14.2857% - 10px);
   min-width: 120px;
   max-width: 200px;
+}
+
+/* 数学统计的5个数据项 */
+.stats-grid.math-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.stats-grid.math-stats .stat-item {
+  flex: none;
+  min-width: 150px;
+  max-width: none;
+  width: 100%;
 }
 
 .stat-item {

@@ -73,28 +73,12 @@
                   <span class="stat-value-compact">{{ result.total_pulls }}</span>
                 </div>
                 <div class="stat-item-compact">
-                  <span class="stat-label-compact">已连续</span>
-                  <span class="stat-value-compact">{{ result.current_pity }}</span>
-                  <span class="stat-label-compact">抽未出5★</span>
-                </div>
-                <div class="stat-item-compact">
-                  <span class="stat-label-compact">已连续</span>
-                  <span class="stat-value-compact">{{ result.up_pity }}</span>
-                  <span class="stat-label-compact">抽未出5★UP</span>
-                </div>
-              </div>
-              <div class="stat-row">
-                <div class="stat-item-compact">
                   <span class="stat-label-compact">5★UP角色数:</span>
                   <span class="stat-value-compact success">{{ result.up_count }}</span>
                 </div>
                 <div class="stat-item-compact">
                   <span class="stat-label-compact">5★常驻角色数:</span>
                   <span class="stat-value-compact">{{ result.avg_count }}</span>
-                </div>
-                <div class="stat-item-compact">
-                  <span class="stat-label-compact">下次5★必UP:</span>
-                  <span class="stat-value-compact">{{ result.guarantee_up ? '是' : '否' }}</span>
                 </div>
               </div>
               <div class="stat-row">
@@ -119,6 +103,27 @@
                 <div class="stat-item-compact">
                   <span class="stat-label-compact">4★常驻物品数:</span>
                   <span class="stat-value-compact">{{ result.four_star_avg_count || 0 }}</span>
+                </div>
+                <div class="stat-item-compact">
+                  <span class="stat-label-compact">已连续</span>
+                  <span class="stat-value-compact">{{ result.current_pity }}</span>
+                  <span class="stat-label-compact">抽未出5★</span>
+                </div>
+              </div>
+              <div class="stat-row">
+                <div class="stat-item-compact">
+                  <span class="stat-label-compact">已连续</span>
+                  <span class="stat-value-compact">{{ result.up_pity }}</span>
+                  <span class="stat-label-compact">抽未出5★UP</span>
+                </div>
+                <div class="stat-item-compact">
+                  <span class="stat-label-compact">上一个5★花费:</span>
+                  <span class="stat-value-compact">{{ result.last_five_star_cost || 0 }}</span>
+                  <span class="stat-label-compact">抽</span>
+                </div>
+                <div class="stat-item-compact">
+                  <span class="stat-label-compact">下次5★必UP:</span>
+                  <span class="stat-value-compact">{{ result.guarantee_up ? '是' : '否' }}</span>
                 </div>
               </div>
             </div>
@@ -162,7 +167,8 @@ export default {
         four_star_up_3_count: 0,
         guarantee_up: false,
         guarantee_four_star_up: false,
-        migu_counter: 0
+        migu_counter: 0,
+        last_five_star_cost: 0
       },
       isLoading: false,
       showRefreshAnimation: false,
@@ -224,7 +230,8 @@ export default {
             guarantee_up: this.result.guarantee_up || false,
             guarantee_four_star_up: this.result.guarantee_four_star_up || false,
             total_pulls: this.result.total_pulls || 0,
-            migu_counter: this.result.migu_counter || 0
+            migu_counter: this.result.migu_counter || 0,
+            last_five_star_cost: this.result.last_five_star_cost || 0
           }),
           new Promise(resolve => setTimeout(resolve, delay))
         ])
@@ -275,7 +282,8 @@ export default {
             guarantee_up: this.result.guarantee_up || false,
             guarantee_four_star_up: this.result.guarantee_four_star_up || false,
             total_pulls: this.result.total_pulls || 0,
-            migu_counter: this.result.migu_counter || 0
+            migu_counter: this.result.migu_counter || 0,
+            last_five_star_cost: this.result.last_five_star_cost || 0
           }),
           new Promise(resolve => setTimeout(resolve, delay))
         ])
@@ -323,7 +331,8 @@ export default {
         four_star_up_3_count: 0,
         guarantee_up: false,
         guarantee_four_star_up: false,
-        migu_counter: 0
+        migu_counter: 0,
+        last_five_star_cost: 0
       }
       // 清空抽卡历史
       this.pullHistory = []

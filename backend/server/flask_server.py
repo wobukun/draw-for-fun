@@ -79,47 +79,7 @@ class WishServer:
                 return self._handle_character_wish(data, action, CharacterWishSimulator2)
             elif mode == 'weapon':
                 # 武器祈愿
-                # 从请求中获取祈愿进度参数
-                current_pity = data.get('current_pity', 0)
-                up_pity = data.get('up_pity', 0)
-                fate_pity = data.get('fate_pity', 0)
-                avg_count = data.get('avg_count', 0)
-                up_count = data.get('up_count', 0)
-                fate_count = data.get('fate_count', 0)
-                guarantee_up = data.get('guarantee_up', False)
-                fate_point = data.get('fate_point', 0)
-                is_fate_guaranteed = data.get('is_fate_guaranteed', False)
-                total_pulls = data.get('total_pulls', 0)
-                
-                # 创建新的模拟器实例，使用请求中的祈愿进度参数
-                sim = WeaponWishSimulator()
-                sim.pity = current_pity
-                sim.up_pity = up_pity
-                sim.fate_pity = fate_pity
-                sim.avg_count = avg_count
-                sim.up_count = up_count
-                sim.fate_count = fate_count
-                sim.guarantee_up = guarantee_up
-                sim.fate_point = fate_point
-                sim.is_fate_guaranteed = is_fate_guaranteed
-                sim.total_pulls = total_pulls
-                
-                if action == 'one':
-                    # 武器单抽
-                    result = sim.pull_one()
-                    return self.process_weapon_result(result)
-                elif action == 'ten':
-                    # 武器十连
-                    result = sim.pull_ten()
-                    return self.process_weapon_ten_result(result)
-                elif action == 'auto':
-                    # 武器自动模拟
-                    count = data.get('count', 1000)
-                    start_pity = data.get('start_pity', 0)
-                    sim = WeaponWishSimulator(start_pity)
-                    result = sim.simulate_pulls(count)
-                    result['total_pulls'] = count
-                    return jsonify(result)
+                return self._handle_weapon_wish(data, action)
             else:
                 return jsonify({'error': 'Unknown mode'}), 400
         except Exception as e:
@@ -136,6 +96,7 @@ class WishServer:
         guarantee_up = data.get('guarantee_up', False)
         total_pulls = data.get('total_pulls', 0)
         migu_counter = data.get('migu_counter', 0)
+        last_five_star_cost = data.get('last_five_star_cost', 0)
         
         # 创建新的模拟器实例，使用请求中的祈愿进度参数
         sim = SimulatorClass()
@@ -153,6 +114,7 @@ class WishServer:
         sim.guarantee_four_star_up = data.get('guarantee_four_star_up', False)
         sim.total_pulls = total_pulls
         sim.migu_counter = migu_counter
+        sim.last_five_star_cost = last_five_star_cost
         
         # 获取5星UP角色名称（从模块中获取）
         if SimulatorClass == CharacterWishSimulator2:
@@ -173,6 +135,56 @@ class WishServer:
             count = data.get('count', 1000)
             start_pity = data.get('start_pity', 0)
             sim = SimulatorClass(start_pity)
+            result = sim.simulate_pulls(count)
+            result['total_pulls'] = count
+            return jsonify(result)
+        else:
+            return jsonify({'error': 'Unknown action'}), 400
+
+    def _handle_weapon_wish(self, data, action):
+        """处理武器祈愿的通用方法"""
+        # 从请求中获取祈愿进度参数
+        current_pity = data.get('current_pity', 0)
+        four_star_pity = data.get('four_star_pity', 0)
+        avg_count = data.get('avg_count', 0)
+        five_star_up_counts = data.get('five_star_up_counts', {'5星UP武器-1': 0, '5星UP武器-2': 0})
+        four_star_up_count = data.get('four_star_up_count', 0)
+        four_star_avg_count = data.get('four_star_avg_count', 0)
+        guarantee_up = data.get('guarantee_up', False)
+        four_star_guarantee_up = data.get('four_star_guarantee_up', False)
+        fate_point = data.get('fate_point', 0)
+        total_pulls = data.get('total_pulls', 0)
+        last_five_star_cost = data.get('last_five_star_cost', 0)
+        selected_fate_weapon = data.get('selected_fate_weapon', None)
+        
+        # 创建新的模拟器实例，使用请求中的祈愿进度参数
+        sim = WeaponWishSimulator()
+        sim.pity = current_pity
+        sim.four_star_pity = four_star_pity
+        sim.avg_count = avg_count
+        sim.five_star_up_counts = five_star_up_counts
+        sim.four_star_up_count = four_star_up_count
+        sim.four_star_avg_count = four_star_avg_count
+        sim.guarantee_up = guarantee_up
+        sim.four_star_guarantee_up = four_star_guarantee_up
+        sim.fate_point = fate_point
+        sim.total_pulls = total_pulls
+        sim.last_five_star_cost = last_five_star_cost
+        sim.selected_fate_weapon = selected_fate_weapon
+        
+        if action == 'one':
+            # 武器单抽
+            result = sim.pull_one()
+            return self.process_weapon_result(result)
+        elif action == 'ten':
+            # 武器十连
+            result = sim.pull_ten()
+            return self.process_weapon_ten_result(result)
+        elif action == 'auto':
+            # 武器自动模拟
+            count = data.get('count', 1000)
+            start_pity = data.get('start_pity', 0)
+            sim = WeaponWishSimulator(start_pity)
             result = sim.simulate_pulls(count)
             result['total_pulls'] = count
             return jsonify(result)
@@ -388,9 +400,8 @@ class WishServer:
             'is_up': result['is_up'][0],
             'is_four_star_up': result['is_four_star_up'][0],
             'four_star_item': result['four_star_items'][0],
-            'new_pity': result['new_pity'],
-            'current_pity': result['new_pity'],  # 添加 current_pity 字段以兼容前端
-            'new_four_star_pity': result['new_four_star_pity'],
+            'current_pity': result['new_pity'],
+            'four_star_pity': result['new_four_star_pity'],
             'used_prob': result['used_probs'][0],
             'avg_count': result['avg_count'],
             'up_count': result['up_count'],
@@ -407,7 +418,8 @@ class WishServer:
             'capture_minguang': result['capture_minguang'][0],
             'migu_counter': result['migu_counter'],
             'guarantee_capture_minguang': result['guarantee_capture_minguang'],
-            'capture_minguang_count': result['capture_minguang_count']
+            'capture_minguang_count': result['capture_minguang_count'],
+            'last_five_star_cost': result.get('last_five_star_cost', 0)
         })
 
     def process_character_ten_result(self, result, five_star_up_name='5星UP角色-1'):
@@ -444,9 +456,8 @@ class WishServer:
         
         return jsonify({
             'results': results,
-            'new_pity': result['new_pity'],
-            'current_pity': result['new_pity'],  # 添加 current_pity 字段以兼容前端
-            'new_four_star_pity': result['new_four_star_pity'],
+            'current_pity': result['new_pity'],
+            'four_star_pity': result['new_four_star_pity'],
             'avg_count': result['avg_count'],
             'up_count': result['up_count'],
             'four_star_up_count': result.get('four_star_up_count', 0),
@@ -461,50 +472,55 @@ class WishServer:
             'guarantee_four_star_up': result['guarantee_four_star_up'],
             'migu_counter': result['migu_counter'],
             'guarantee_capture_minguang': result['guarantee_capture_minguang'],
-            'capture_minguang_count': result['capture_minguang_count']
+            'capture_minguang_count': result['capture_minguang_count'],
+            'last_five_star_cost': result.get('last_five_star_cost', 0)
         })
 
     def process_weapon_result(self, result):
         """处理武器单抽结果，转换为前端需要的格式"""
         return jsonify({
             'star': 5 if result['results'][0] else (4 if result['four_star_results'][0] else 3),
+            'name': result['weapon_names'][0],
             'is_up': result['is_up'][0],
             'is_four_star_up': result['is_four_star_up'][0],
-            'new_pity': result['new_pity'],
-            'current_pity': result['new_pity'],  # 添加 current_pity 字段以兼容前端
-            'new_four_star_pity': result['new_four_star_pity'],
-            'used_prob': result['used_probs'][0],
+            'is_fate': result['is_fate'][0],
+            'current_pity': result['new_pity'],
+            'four_star_pity': result['new_four_star_pity'],
+            'used_prob': result.get('used_probs', [0])[0],
             'avg_count': result['avg_count'],
-            'up_count': result['up_count'],
-            'fate_count': result['fate_count'],
-            'up_pity': result['up_pity'],
-            'start_up_pity': result['start_up_pity'],
+            'five_star_up_counts': result.get('five_star_up_counts', {'5星UP武器-1': 0, '5星UP武器-2': 0}),
             'total_pulls': result['total_pulls'],
             'guarantee_up': result['guarantee_up'],
+            'four_star_guarantee_up': result.get('four_star_guarantee_up', False),
             'fate_point': result['fate_point'],
-            'is_fate_guaranteed': result['is_fate_guaranteed']
+            'selected_fate_weapon': result.get('selected_fate_weapon', None),
+            'four_star_up_count': result.get('four_star_up_count', 0),
+            'four_star_avg_count': result.get('four_star_avg_count', 0),
+            'last_five_star_cost': result.get('last_five_star_cost', 0)
         })
 
     def process_weapon_ten_result(self, result):
         """处理武器十连结果，转换为前端需要的格式"""
         return jsonify({
             'results': result['results'],
+            'weapon_names': result['weapon_names'],
             'four_star_results': result['four_star_results'],
             'is_up': result['is_up'],
             'is_four_star_up': result['is_four_star_up'],
-            'new_pity': result['new_pity'],
-            'current_pity': result['new_pity'],  # 添加 current_pity 字段以兼容前端
-            'new_four_star_pity': result['new_four_star_pity'],
-            'used_probs': result['used_probs'],
+            'is_fate': result['is_fate'],
+            'current_pity': result['new_pity'],
+            'four_star_pity': result['new_four_star_pity'],
+            'used_probs': result.get('used_probs', [0] * 10),
             'avg_count': result['avg_count'],
-            'up_count': result['up_count'],
-            'fate_count': result['fate_count'],
-            'up_pity': result['up_pity'],
-            'start_up_pity': result['start_up_pity'],
+            'five_star_up_counts': result.get('five_star_up_counts', {'5星UP武器-1': 0, '5星UP武器-2': 0}),
             'total_pulls': result['total_pulls'],
             'guarantee_up': result['guarantee_up'],
+            'four_star_guarantee_up': result.get('four_star_guarantee_up', False),
             'fate_point': result['fate_point'],
-            'is_fate_guaranteed': result['is_fate_guaranteed']
+            'selected_fate_weapon': result.get('selected_fate_weapon', None),
+            'four_star_up_count': result.get('four_star_up_count', 0),
+            'four_star_avg_count': result.get('four_star_avg_count', 0),
+            'last_five_star_cost': result.get('last_five_star_cost', 0)
         })
 
 
