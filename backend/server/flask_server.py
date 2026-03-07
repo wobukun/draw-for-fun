@@ -201,31 +201,25 @@ class WishServer:
             if resources < 0:
                 return jsonify({'error': 'resources must be >= 0'}), 400
 
-            # 目标：允许用"层数"或直接 copies
-            # 角色：0命=1个UP角色，1命=2个UP角色... => copies = constellation + 1
-            if 'target_character_copies' in data:
-                character_target_copies = int(data.get('target_character_copies', 0))
-            elif 'target_character_constellation' in data:
-                character_target_copies = GoalProbability.GoalProbabilityCalculator.constellation_to_copies(
-                    int(data.get('target_character_constellation', 0))
-                )
-            else:
-                character_target_copies = 0
+            # 新的四目标参数
+            char1 = int(data.get('five_star_up_character_1', 0))
+            char2 = int(data.get('five_star_up_character_2', 0))
+            weap1 = int(data.get('five_star_up_weapon_1', 0))
+            weap2 = int(data.get('five_star_up_weapon_2', 0))
 
-            # 武器：1精=1把目标武器，2精=2把目标武器... => copies = refinement
-            if 'target_weapon_copies' in data:
-                weapon_target_copies = int(data.get('target_weapon_copies', 0))
-            elif 'target_weapon_refinement' in data:
-                weapon_target_copies = GoalProbability.GoalProbabilityCalculator.refinement_to_copies(
-                    int(data.get('target_weapon_refinement', 0))
-                )
-            else:
-                weapon_target_copies = 0
-
-            if character_target_copies < 0 or weapon_target_copies < 0:
+            # 验证目标数量
+            if any(x < 0 for x in [char1, char2, weap1, weap2]):
                 return jsonify({'error': 'targets must be >= 0'}), 400
-            if character_target_copies == 0 and weapon_target_copies == 0:
+            if all(x == 0 for x in [char1, char2, weap1, weap2]):
                 return jsonify({'error': 'at least one target must be > 0'}), 400
+
+            # 创建目标数据类
+            targets = GoalProbability.Targets(
+                five_star_up_character_1=char1,
+                five_star_up_character_2=char2,
+                five_star_up_weapon_1=weap1,
+                five_star_up_weapon_2=weap2
+            )
 
             # 模拟参数
             trials = int(data.get('trials', 5000))
@@ -235,22 +229,15 @@ class WishServer:
             # 执行蒙特卡洛模拟
             calculator = GoalProbability.GoalProbabilityCalculator()
             
-            # 根据请求中的 mode 参数选择模拟器类型
-            mode = data.get('mode', 'character')
-            if mode == 'character2':
-                simulator_class = CharacterWishSimulator2
-            else:
-                simulator_class = CharacterWishSimulator
-            
             result = calculator.estimate_goal_probability(
                 pulls=resources,
-                character_target_copies=character_target_copies,
-                weapon_target_copies=weapon_target_copies,
+                targets=targets,
                 trials=trials,
                 strategy="character_then_weapon",
                 seed=None,
                 start=GoalProbability.StartState(),
                 draw_character_module=CharacterWish,
+                draw_character2_module=CharacterWish2,
                 draw_weapon_module=WeaponWish
             )
             
@@ -264,50 +251,34 @@ class WishServer:
         try:
             data = request.json or {}
 
-            # 目标：允许用"层数"或直接 copies
-            if 'target_character_copies' in data:
-                character_target_copies = int(data.get('target_character_copies', 0))
-            elif 'target_character_constellation' in data:
-                character_target_copies = GoalProbability.GoalProbabilityCalculator.constellation_to_copies(
-                    int(data.get('target_character_constellation', 0))
-                )
-            else:
-                character_target_copies = 0
+            # 新的四目标参数
+            char1 = int(data.get('five_star_up_character_1', 0))
+            char2 = int(data.get('five_star_up_character_2', 0))
+            weap1 = int(data.get('five_star_up_weapon_1', 0))
+            weap2 = int(data.get('five_star_up_weapon_2', 0))
 
-            if 'target_weapon_copies' in data:
-                weapon_target_copies = int(data.get('target_weapon_copies', 0))
-            elif 'target_weapon_refinement' in data:
-                weapon_target_copies = GoalProbability.GoalProbabilityCalculator.refinement_to_copies(
-                    int(data.get('target_weapon_refinement', 0))
-                )
-            else:
-                weapon_target_copies = 0
-
-            if character_target_copies < 0 or weapon_target_copies < 0:
+            # 验证目标数量
+            if any(x < 0 for x in [char1, char2, weap1, weap2]):
                 return jsonify({'error': 'targets must be >= 0'}), 400
-            if character_target_copies == 0 and weapon_target_copies == 0:
+            if all(x == 0 for x in [char1, char2, weap1, weap2]):
                 return jsonify({'error': 'at least one target must be > 0'}), 400
 
-            # 模拟参数
-            trials = int(data.get('trials', 2000))
-            if trials < 100:
-                return jsonify({'error': 'trials must be >= 100'}), 400
+            # 创建目标数据类
+            targets = GoalProbability.Targets(
+                five_star_up_character_1=char1,
+                five_star_up_character_2=char2,
+                five_star_up_weapon_1=weap1,
+                five_star_up_weapon_2=weap2
+            )
 
             # 执行蒙特卡洛模拟
             calculator = GoalProbability.GoalProbabilityCalculator()
             
-            # 根据请求中的 mode 参数选择模拟器类型
-            mode = data.get('mode', 'character')
-            if mode == 'character2':
-                simulator_class = CharacterWishSimulator2
-            else:
-                simulator_class = CharacterWishSimulator
-            
             result = calculator.calculate_required_pulls_for_95_percent_probability(
-                character_target_constellation=data.get('target_character_constellation', 0),
-                weapon_target_refinement=data.get('target_weapon_refinement', 0),
+                targets=targets,
                 strategy="character_then_weapon",
                 draw_character_module=CharacterWish,
+                draw_character2_module=CharacterWish2,
                 draw_weapon_module=WeaponWish
             )
             
@@ -321,50 +292,34 @@ class WishServer:
         try:
             data = request.json or {}
 
-            # 目标：允许用"层数"或直接 copies
-            if 'target_character_copies' in data:
-                character_target_copies = int(data.get('target_character_copies', 0))
-            elif 'target_character_constellation' in data:
-                character_target_copies = GoalProbability.GoalProbabilityCalculator.constellation_to_copies(
-                    int(data.get('target_character_constellation', 0))
-                )
-            else:
-                character_target_copies = 0
+            # 新的四目标参数
+            char1 = int(data.get('five_star_up_character_1', 0))
+            char2 = int(data.get('five_star_up_character_2', 0))
+            weap1 = int(data.get('five_star_up_weapon_1', 0))
+            weap2 = int(data.get('five_star_up_weapon_2', 0))
 
-            if 'target_weapon_copies' in data:
-                weapon_target_copies = int(data.get('target_weapon_copies', 0))
-            elif 'target_weapon_refinement' in data:
-                weapon_target_copies = GoalProbability.GoalProbabilityCalculator.refinement_to_copies(
-                    int(data.get('target_weapon_refinement', 0))
-                )
-            else:
-                weapon_target_copies = 0
-
-            if character_target_copies < 0 or weapon_target_copies < 0:
+            # 验证目标数量
+            if any(x < 0 for x in [char1, char2, weap1, weap2]):
                 return jsonify({'error': 'targets must be >= 0'}), 400
-            if character_target_copies == 0 and weapon_target_copies == 0:
+            if all(x == 0 for x in [char1, char2, weap1, weap2]):
                 return jsonify({'error': 'at least one target must be > 0'}), 400
 
-            # 模拟参数
-            trials = int(data.get('trials', 2000))
-            if trials < 100:
-                return jsonify({'error': 'trials must be >= 100'}), 400
+            # 创建目标数据类
+            targets = GoalProbability.Targets(
+                five_star_up_character_1=char1,
+                five_star_up_character_2=char2,
+                five_star_up_weapon_1=weap1,
+                five_star_up_weapon_2=weap2
+            )
 
             # 执行蒙特卡洛模拟
             calculator = GoalProbability.GoalProbabilityCalculator()
             
-            # 根据请求中的 mode 参数选择模拟器类型
-            mode = data.get('mode', 'character')
-            if mode == 'character2':
-                simulator_class = CharacterWishSimulator2
-            else:
-                simulator_class = CharacterWishSimulator
-            
             result = calculator.calculate_required_pulls_for_50_percent_probability(
-                character_target_constellation=data.get('target_character_constellation', 0),
-                weapon_target_refinement=data.get('target_weapon_refinement', 0),
+                targets=targets,
                 strategy="character_then_weapon",
                 draw_character_module=CharacterWish,
+                draw_character2_module=CharacterWish2,
                 draw_weapon_module=WeaponWish
             )
             

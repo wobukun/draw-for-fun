@@ -6,6 +6,8 @@
 - 支持多个具体目标：5星UP角色-1，5星UP角色-2，5星UP武器-1，5星UP武器-2
 - 5星UP角色-1：在角色活动祈愿中抽取
 - 5星UP角色-2：在角色活动祈愿-2中抽取
+  - 角色活动祈愿和角色活动祈愿-2共享保底（包括大保底和小保底）
+  - 默认抽取顺序：角色活动祈愿 -> 角色活动祈愿-2 -> 武器活动祈愿
 - 5星UP武器-1 和 5星UP武器-2：都在武器活动祈愿中抽取
   - 如果只想要其中一把，定轨那把武器
   - 如果两把都想要，定轨距离目标更远的那把（剩余需求更多的）
@@ -69,14 +71,20 @@ class GoalProbabilityCalculator:
     支持角色和武器两种抽卡类型，以及不同的抽取策略。
     """
 
-    def __init__(self, max_total_draws: int = 3_000_000) -> None:
+    # 类级别的默认模拟次数常量
+    DEFAULT_TRIALS: int = 10000  # 默认模拟次数，用于概率估算
+    
+    def __init__(self, max_total_draws: int = 3_000_000, trials: int = None) -> None:
         """初始化概率计算器
 
         Args:
             max_total_draws: 单次请求的最大总抽数限制，避免服务器阻塞
+            trials: 模拟试验次数，默认为 DEFAULT_TRIALS
         """
         # 单次请求的「抽数 * 试验次数」上限，避免阻塞
         self.max_total_draws = int(max_total_draws)
+        # 实例级别的模拟次数，可通过参数覆盖默认值
+        self.trials = trials if trials is not None else self.DEFAULT_TRIALS
 
     # ===== 静态/类工具方法 =====
 
@@ -192,27 +200,37 @@ class GoalProbabilityCalculator:
 
         # 减少模块属性访问开销
         CharacterWishSimulator = draw_character_module.CharacterWishSimulator
-        CharacterWish2Simulator = draw_character2_module.CharacterWishSimulator
+        CharacterWish2Simulator = draw_character2_module.CharacterWishSimulator2
         WeaponWishSimulator = draw_weapon_module.WeaponWishSimulator
 
         # 分离 seed，避免角色/武器强相关
         rng = np.random.default_rng(seed)
-        seed_char1 = int(rng.integers(0, 2**31 - 1))
-        seed_char2 = int(rng.integers(0, 2**31 - 1))
+        seed_char = int(rng.integers(0, 2**31 - 1))
         seed_weap = int(rng.integers(0, 2**31 - 1))
 
-        # 创建角色模拟器实例（UP角色-1 和 UP角色-2 分别在不同的池子）
-        char1_sim = CharacterWishSimulator(pity=start.character_pity, seed=seed_char1)
+        # 创建角色模拟器实例（UP角色-1 和 UP角色-2 分别在不同的池子，但共享保底）
+        # 使用相同的seed和初始状态，确保保底同步
+        char1_sim = CharacterWishSimulator(pity=start.character_pity, seed=seed_char)
         char1_sim.guarantee_up = bool(start.character_guarantee_up)
         
-        char2_sim = CharacterWish2Simulator(pity=start.character_pity, seed=seed_char2)
+        char2_sim = CharacterWish2Simulator(pity=start.character_pity, seed=seed_char)
         char2_sim.guarantee_up = bool(start.character_guarantee_up)
 
         # 创建武器模拟器实例
         weap_sim = WeaponWishSimulator(pity=start.weapon_pity, seed=seed_weap)
         weap_sim.guarantee_up = bool(start.weapon_guarantee_up)
         weap_sim.fate_point = int(start.weapon_fate_point)
-        # 注意：WeaponWishSimulator 没有 is_fate_guaranteed 属性
+
+        # 辅助函数：同步角色池状态（保底计数和UP保证状态）
+        def sync_character_state(source_sim, target_sim):
+            """将源模拟器的状态同步到目标模拟器"""
+            target_sim.pity = source_sim.pity
+            target_sim.guarantee_up = source_sim.guarantee_up
+            # 同步捕获明光相关状态（如果存在）
+            if hasattr(source_sim, 'migu_counter') and hasattr(target_sim, 'migu_counter'):
+                target_sim.migu_counter = source_sim.migu_counter
+            if hasattr(source_sim, 'guarantee_capture_minguang') and hasattr(target_sim, 'guarantee_capture_minguang'):
+                target_sim.guarantee_capture_minguang = source_sim.guarantee_capture_minguang
 
         # 辅助函数：根据当前剩余需求决定定轨武器
         def update_fate_weapon(current_got_weap1: int, current_got_weap2: int) -> None:
@@ -238,131 +256,68 @@ class GoalProbabilityCalculator:
         got_weap1 = 0
         got_weap2 = 0
 
-        # 执行抽取策略
-        if strategy == "character_then_weapon":
-            # 抽取UP角色-1（角色活动祈愿）
-            while remaining > 0 and got_char1 < need_char1:
-                # draw_once 返回: (is_5star, is_4star, new_pity, new_four_star_pity, used_probability, is_up, is_four_star_up, capture_minguang_triggered, four_star_item)
+        # 默认抽取顺序：角色活动祈愿 -> 角色活动祈愿-2 -> 武器活动祈愿
+        # 角色池共享保底，需要同步状态
+        
+        # 抽取角色（两个池子共享保底）
+        while remaining > 0 and (got_char1 < need_char1 or got_char2 < need_char2):
+            # 优先抽取UP角色-1，如果还需要
+            if got_char1 < need_char1:
                 is_5star, _, _, _, _, is_up, _, _, _ = char1_sim.draw_once()
                 remaining -= 1
-                if is_5star and is_up:
-                    got_char1 += 1
-                # 提前终止检查
-                if (
-                    got_char1 >= need_char1 and
-                    got_char2 >= need_char2 and
-                    got_weap1 >= need_weap1 and
-                    got_weap2 >= need_weap2
-                ):
-                    return True
-            
-            # 抽取UP角色-2（角色活动祈愿-2）
-            while remaining > 0 and got_char2 < need_char2:
+                if is_5star:
+                    if is_up:
+                        got_char1 += 1
+                    # 同步状态到角色池2
+                    sync_character_state(char1_sim, char2_sim)
+            # 然后抽取UP角色-2，如果还需要
+            elif got_char2 < need_char2:
                 is_5star, _, _, _, _, is_up, _, _, _ = char2_sim.draw_once()
                 remaining -= 1
-                if is_5star and is_up:
-                    got_char2 += 1
-                # 提前终止检查
-                if (
-                    got_char1 >= need_char1 and
-                    got_char2 >= need_char2 and
-                    got_weap1 >= need_weap1 and
-                    got_weap2 >= need_weap2
-                ):
-                    return True
+                if is_5star:
+                    if is_up:
+                        got_char2 += 1
+                    # 同步状态到角色池1
+                    sync_character_state(char2_sim, char1_sim)
             
-            # 抽取武器（武器活动祈愿）
-            while remaining > 0 and (got_weap1 < need_weap1 or got_weap2 < need_weap2):
-                # draw_once 返回: (is_5star, is_4star, new_pity, new_four_star_pity, used_probability, is_up, is_four_star_up, is_fate, weapon_name, new_fate_point, selected_fate_weapon)
-                is_5star, _, _, _, _, is_up, _, is_fate, weapon_name, _, _ = weap_sim.draw_once()
-                remaining -= 1
-                if is_5star and is_up:
-                    # 根据武器名称判断是哪个UP武器
-                    if weapon_name == '5星UP武器-1':
-                        got_weap1 += 1
-                    elif weapon_name == '5星UP武器-2':
-                        got_weap2 += 1
-                    # 如果获得了定轨武器（命定值清零），重新计算定轨策略
-                    if is_fate:
-                        update_fate_weapon(got_weap1, got_weap2)
-                elif is_5star and not is_up:
-                    # 抽到常驻5星武器，且两把武器都还需要
-                    # 取消定轨并重新定轨离目标更远的那把
-                    if got_weap1 < need_weap1 and got_weap2 < need_weap2:
-                        # 取消定轨
-                        weap_sim.selected_fate_weapon = None
-                        # 重新定轨离目标更远的那把
-                        update_fate_weapon(got_weap1, got_weap2)
-                # 提前终止检查
-                if (
-                    got_char1 >= need_char1 and
-                    got_char2 >= need_char2 and
-                    got_weap1 >= need_weap1 and
-                    got_weap2 >= need_weap2
-                ):
-                    return True
-                    
-        elif strategy == "weapon_then_character":
-            # 抽取武器（武器活动祈愿）
-            while remaining > 0 and (got_weap1 < need_weap1 or got_weap2 < need_weap2):
-                is_5star, _, _, _, _, is_up, _, is_fate, weapon_name, _, _ = weap_sim.draw_once()
-                remaining -= 1
-                if is_5star and is_up:
-                    if weapon_name == '5星UP武器-1':
-                        got_weap1 += 1
-                    elif weapon_name == '5星UP武器-2':
-                        got_weap2 += 1
-                    # 如果获得了定轨武器（命定值清零），重新计算定轨策略
-                    if is_fate:
-                        update_fate_weapon(got_weap1, got_weap2)
-                elif is_5star and not is_up:
-                    # 抽到常驻5星武器，且两把武器都还需要
-                    # 取消定轨并重新定轨离目标更远的那把
-                    if got_weap1 < need_weap1 and got_weap2 < need_weap2:
-                        # 取消定轨
-                        weap_sim.selected_fate_weapon = None
-                        # 重新定轨离目标更远的那把
-                        update_fate_weapon(got_weap1, got_weap2)
-                # 提前终止检查
-                if (
-                    got_char1 >= need_char1 and
-                    got_char2 >= need_char2 and
-                    got_weap1 >= need_weap1 and
-                    got_weap2 >= need_weap2
-                ):
-                    return True
-            
-            # 抽取UP角色-1（角色活动祈愿）
-            while remaining > 0 and got_char1 < need_char1:
-                is_5star, _, _, _, _, is_up, _, _, _ = char1_sim.draw_once()
-                remaining -= 1
-                if is_5star and is_up:
-                    got_char1 += 1
-                # 提前终止检查
-                if (
-                    got_char1 >= need_char1 and
-                    got_char2 >= need_char2 and
-                    got_weap1 >= need_weap1 and
-                    got_weap2 >= need_weap2
-                ):
-                    return True
-            
-            # 抽取UP角色-2（角色活动祈愿-2）
-            while remaining > 0 and got_char2 < need_char2:
-                is_5star, _, _, _, _, is_up, _, _, _ = char2_sim.draw_once()
-                remaining -= 1
-                if is_5star and is_up:
-                    got_char2 += 1
-                # 提前终止检查
-                if (
-                    got_char1 >= need_char1 and
-                    got_char2 >= need_char2 and
-                    got_weap1 >= need_weap1 and
-                    got_weap2 >= need_weap2
-                ):
-                    return True
-        else:
-            raise ValueError(f"Unknown strategy: {strategy}")
+            # 提前终止检查
+            if (
+                got_char1 >= need_char1 and
+                got_char2 >= need_char2 and
+                got_weap1 >= need_weap1 and
+                got_weap2 >= need_weap2
+            ):
+                return True
+        
+        # 抽取武器（武器活动祈愿）
+        while remaining > 0 and (got_weap1 < need_weap1 or got_weap2 < need_weap2):
+            is_5star, _, _, _, _, is_up, _, is_fate, weapon_name, _, _ = weap_sim.draw_once()
+            remaining -= 1
+            if is_5star and is_up:
+                # 根据武器名称判断是哪个UP武器
+                if weapon_name == '5星UP武器-1':
+                    got_weap1 += 1
+                elif weapon_name == '5星UP武器-2':
+                    got_weap2 += 1
+                # 如果获得了定轨武器（命定值清零），重新计算定轨策略
+                if is_fate:
+                    update_fate_weapon(got_weap1, got_weap2)
+            elif is_5star and not is_up:
+                # 抽到常驻5星武器，且两把武器都还需要
+                # 取消定轨并重新定轨离目标更远的那把
+                if got_weap1 < need_weap1 and got_weap2 < need_weap2:
+                    # 取消定轨
+                    weap_sim.selected_fate_weapon = None
+                    # 重新定轨离目标更远的那把
+                    update_fate_weapon(got_weap1, got_weap2)
+            # 提前终止检查
+            if (
+                got_char1 >= need_char1 and
+                got_char2 >= need_char2 and
+                got_weap1 >= need_weap1 and
+                got_weap2 >= need_weap2
+            ):
+                return True
 
         return (
             got_char1 >= need_char1 and
@@ -403,9 +358,9 @@ class GoalProbabilityCalculator:
         pulls = int(pulls)
         trials = int(trials)
         if pulls < 0:
-            raise ValueError("pulls/resources must be >= 0")
+            raise ValueError("pulls/resources must be >=0")
         if trials <= 0:
-            raise ValueError("trials must be > 0")
+            raise ValueError("trials must be >0")
 
         # 计算总目标拷贝数
         total_needed = targets.total_target_copies()
@@ -414,6 +369,7 @@ class GoalProbabilityCalculator:
         if pulls < total_needed:
             return {
                 "strategy": strategy,
+                "resources": pulls,
                 "pulls": pulls,
                 "trials_requested": trials,
                 "trials_used": 0,
@@ -421,6 +377,17 @@ class GoalProbabilityCalculator:
                 "probability": 0.0,
                 "frequency_estimate": 0.0,
                 "ci95_wilson": [0.0, 0.0],
+                "targets": {
+                    "five_star_up_character_1": targets.five_star_up_character_1,
+                    "five_star_up_character_2": targets.five_star_up_character_2,
+                    "five_star_up_weapon_1": targets.five_star_up_weapon_1,
+                    "five_star_up_weapon_2": targets.five_star_up_weapon_2
+                },
+                "best": {
+                    "probability": 0.0,
+                    "ci95_wilson": [0.0, 0.0],
+                    "trials_used": 0
+                }
             }
 
         # 当抽数足够大时，直接返回100%概率
@@ -436,6 +403,7 @@ class GoalProbabilityCalculator:
         if pulls >= total_pulls_needed:
             return {
                 "strategy": strategy,
+                "resources": pulls,
                 "pulls": pulls,
                 "trials_requested": trials,
                 "trials_used": 0,
@@ -443,14 +411,21 @@ class GoalProbabilityCalculator:
                 "probability": 1.0,
                 "frequency_estimate": 1.0,
                 "ci95_wilson": [1.0, 1.0],
+                "targets": {
+                    "five_star_up_character_1": targets.five_star_up_character_1,
+                    "five_star_up_character_2": targets.five_star_up_character_2,
+                    "five_star_up_weapon_1": targets.five_star_up_weapon_1,
+                    "five_star_up_weapon_2": targets.five_star_up_weapon_2
+                },
+                "best": {
+                    "probability": 1.0,
+                    "ci95_wilson": [1.0, 1.0],
+                    "trials_used": 0
+                }
             }
 
-        # 固定试验次数以提升性能
-        # 设置为固定值 10000 次，平衡精度和性能
-        fixed_trials = 10000
-
-        # 固定试验次数为 10000 次，不受抽数影响
-        effective_trials = fixed_trials
+        # 使用实例属性中的模拟次数
+        effective_trials = self.trials
 
         base_seed = 123456789 if seed is None else int(seed)
         ss = np.random.SeedSequence(base_seed)
@@ -495,6 +470,7 @@ class GoalProbabilityCalculator:
         ci_lo, ci_hi = self._wilson_ci95(successes, effective_trials)
         return {
             "strategy": strategy,
+            "resources": pulls,
             "pulls": pulls,
             "trials_requested": trials,
             "trials_used": effective_trials,
@@ -503,7 +479,195 @@ class GoalProbabilityCalculator:
             "probability": float(bayes_p),
             "frequency_estimate": float(freq_p),
             "ci95_wilson": [ci_lo, ci_hi],
+            "targets": {
+                "five_star_up_character_1": targets.five_star_up_character_1,
+                "five_star_up_character_2": targets.five_star_up_character_2,
+                "five_star_up_weapon_1": targets.five_star_up_weapon_1,
+                "five_star_up_weapon_2": targets.five_star_up_weapon_2
+            },
+            "best": {
+                "probability": float(bayes_p),
+                "ci95_wilson": [ci_lo, ci_hi],
+                "trials_used": effective_trials
+            }
         }
+
+    def _find_first_pulls_meeting_probability(
+        self,
+        *,
+        targets: Targets,
+        target_probability: float,
+        strategy: Strategy,
+        seed: int | None,
+        start: StartState,
+        draw_character_module,
+        draw_character2_module,
+        draw_weapon_module,
+        quick_trials: int = 1000,
+        medium_trials: int = 3000,
+    ) -> tuple[int, dict]:
+        """找到第一个满足目标概率的抽数（严格边界验证）
+
+        使用二分查找找到最小的抽数 n，使得 P(成功|n抽) >= target_probability
+        且 P(成功|n-1抽) < target_probability
+
+        优化策略：
+        - 前期搜索阶段使用适中的模拟次数（快速定位且保证准确）
+        - 使用更激进的指数搜索步长，快速定位大致范围
+        - 限制二分查找范围，聚焦于已找到的上界附近
+        - 最后使用实例默认的模拟次数（self.trials，默认10000次）进行严格边界验证
+
+        Args:
+            targets: 抽卡目标
+            target_probability: 目标概率（0.5或0.95）
+            strategy: 抽取策略
+            seed: 随机种子
+            start: 起始状态
+            draw_character_module: 角色抽卡模块
+            draw_character2_module: 角色抽卡模块2
+            draw_weapon_module: 武器抽卡模块
+            quick_trials: 快速搜索阶段的模拟次数（默认1000）
+            medium_trials: 精细搜索阶段的模拟次数（默认3000）
+
+        Returns:
+            tuple[int, dict]: (所需抽数, 最终结果字典)
+        """
+        # 计算边界
+        total_needed = targets.total_target_copies()
+        max_pulls = (
+            (targets.five_star_up_character_1 * 180) +
+            (targets.five_star_up_character_2 * 180) +
+            (targets.five_star_up_weapon_1 * 160) +
+            (targets.five_star_up_weapon_2 * 160)
+        )
+
+        # 快速路径
+        if total_needed == 0:
+            return 0, {"probability": 1.0}
+
+        # 第一阶段：快速定位上界
+        # 使用指数搜索 + 更激进的步长策略
+        low = total_needed
+        high = max_pulls
+        found_upper_bound = False
+        test_pulls = low
+        step = 20  # 初始步长
+
+        while test_pulls <= high and not found_upper_bound:
+            result = self.estimate_goal_probability(
+                pulls=test_pulls,
+                targets=targets,
+                trials=quick_trials,
+                strategy=strategy,
+                seed=seed,
+                start=start,
+                draw_character_module=draw_character_module,
+                draw_character2_module=draw_character2_module,
+                draw_weapon_module=draw_weapon_module,
+            )
+            
+            if result["probability"] >= target_probability:
+                high = test_pulls
+                found_upper_bound = True
+            else:
+                # 更激进的指数增长步长
+                step = max(step, int(step * 1.5))
+                test_pulls = min(test_pulls + step, high)
+                low = test_pulls
+
+        if not found_upper_bound:
+            # 如果没找到上界，返回max_pulls
+            final_result = self.estimate_goal_probability(
+                pulls=max_pulls,
+                targets=targets,
+                trials=self.trials,
+                strategy=strategy,
+                seed=seed,
+                start=start,
+                draw_character_module=draw_character_module,
+                draw_character2_module=draw_character2_module,
+                draw_weapon_module=draw_weapon_module,
+            )
+            return max_pulls, final_result
+
+        # 第二阶段：精细二分查找（使用中等精度）
+        # 限制搜索范围，避免在过大范围内进行无效的二分查找
+        required_pulls = high
+        low_bound = max(total_needed, high // 2)  # 从下界的一半开始，更聚焦
+        
+        while low_bound <= high:
+            mid = (low_bound + high) // 2
+            
+            result = self.estimate_goal_probability(
+                pulls=mid,
+                targets=targets,
+                trials=medium_trials,
+                strategy=strategy,
+                seed=seed,
+                start=start,
+                draw_character_module=draw_character_module,
+                draw_character2_module=draw_character2_module,
+                draw_weapon_module=draw_weapon_module,
+            )
+            
+            if result["probability"] >= target_probability:
+                required_pulls = mid
+                high = mid - 1
+            else:
+                low_bound = mid + 1
+
+        # 第三阶段：严格边界验证（使用实例默认的模拟次数）
+        # 确保 required_pulls 是第一个满足条件的抽数
+        
+        # 先验证当前抽数
+        final_result = self.estimate_goal_probability(
+            pulls=required_pulls,
+            targets=targets,
+            trials=self.trials,
+            strategy=strategy,
+            seed=seed,
+            start=start,
+            draw_character_module=draw_character_module,
+            draw_character2_module=draw_character2_module,
+            draw_weapon_module=draw_weapon_module,
+        )
+        
+        # 如果当前抽数不满足，向后搜索
+        while final_result["probability"] < target_probability and required_pulls < max_pulls:
+            required_pulls += 1
+            final_result = self.estimate_goal_probability(
+                pulls=required_pulls,
+                targets=targets,
+                trials=self.trials,
+                strategy=strategy,
+                seed=seed,
+                start=start,
+                draw_character_module=draw_character_module,
+                draw_character2_module=draw_character2_module,
+                draw_weapon_module=draw_weapon_module,
+            )
+        
+        # 向前搜索，找到第一个满足条件的抽数
+        while required_pulls > total_needed:
+            prev_result = self.estimate_goal_probability(
+                pulls=required_pulls - 1,
+                targets=targets,
+                trials=self.trials,
+                strategy=strategy,
+                seed=seed,
+                start=start,
+                draw_character_module=draw_character_module,
+                draw_character2_module=draw_character2_module,
+                draw_weapon_module=draw_weapon_module,
+            )
+            if prev_result["probability"] < target_probability:
+                # 找到了！required_pulls-1不满足，required_pulls满足
+                break
+            # 继续向前搜索
+            required_pulls -= 1
+            final_result = prev_result
+
+        return required_pulls, final_result
 
     def calculate_required_pulls_for_95_percent_probability(
         self,
@@ -516,7 +680,7 @@ class GoalProbabilityCalculator:
         draw_character2_module = None,
         draw_weapon_module = None,
     ) -> dict:
-        """计算达成目标概率达到95%时的所需抽数
+        """计算达成目标概率达到95%时的所需抽数（高精度版本，严格边界验证）
 
         Args:
             targets: 抽卡目标
@@ -540,72 +704,9 @@ class GoalProbabilityCalculator:
         if start is None:
             start = StartState()
 
-        # 快速路径：如果不需要抽任何东西，直接返回0抽
-        total_needed = targets.total_target_copies()
-        if total_needed == 0:
-            return {
-                "strategy": strategy,
-                "required_pulls": 0,
-                "targets": {
-                    "five_star_up_character_1": targets.five_star_up_character_1,
-                    "five_star_up_character_2": targets.five_star_up_character_2,
-                    "five_star_up_weapon_1": targets.five_star_up_weapon_1,
-                    "five_star_up_weapon_2": targets.five_star_up_weapon_2
-                }
-            }
-
-        # 计算最大可能的抽数（100%概率）
-        max_pulls = (
-            (targets.five_star_up_character_1 * 180) +
-            (targets.five_star_up_character_2 * 180) +
-            (targets.five_star_up_weapon_1 * 160) +
-            (targets.five_star_up_weapon_2 * 160)
-        )
-        
-        # 二分查找范围，根据用户要求缩小范围
-        # 该抽数会接近最大可能的抽数（100%概率），且大于等于最大可能的抽数除以2
-        low = max(total_needed, max_pulls // 2)  # 最小可能的抽数，且不小于最大抽数的一半
-        high = max_pulls  # 最大可能的抽数（100%概率）
-
-        # 初始化结果
-        required_pulls = high
-
-        # 二分查找
-        while low <= high:
-            mid = (low + high) // 2
-            
-            # 计算当前抽数下的概率
-            # 早期迭代使用较少的模拟次数，加快搜索速度
-            # 后期迭代使用更多的模拟次数，提高精度
-            trials = 1000 if abs(mid - (low + high) // 2) > 50 else 5000
-            
-            result = self.estimate_goal_probability(
-                pulls=mid,
-                targets=targets,
-                trials=trials,
-                strategy=strategy,
-                seed=seed,
-                start=start,
-                draw_character_module=draw_character_module,
-                draw_character2_module=draw_character2_module,
-                draw_weapon_module=draw_weapon_module,
-            )
-            
-            probability = result["probability"]
-            
-            if probability >= 0.95:
-                # 找到一个可行的抽数，尝试找更小的
-                required_pulls = mid
-                high = mid - 1
-            else:
-                # 概率不够，需要更多抽数
-                low = mid + 1
-
-        # 验证最终结果，使用较多的模拟次数确保精度
-        final_result = self.estimate_goal_probability(
-            pulls=required_pulls,
+        required_pulls, final_result = self._find_first_pulls_meeting_probability(
             targets=targets,
-            trials=5000,
+            target_probability=0.95,
             strategy=strategy,
             seed=seed,
             start=start,
@@ -637,7 +738,7 @@ class GoalProbabilityCalculator:
         draw_character2_module = None,
         draw_weapon_module = None,
     ) -> dict:
-        """计算达成目标概率达到50%时的所需抽数（期望）
+        """计算达成目标概率达到50%时的所需抽数（高精度版本，严格边界验证）
 
         Args:
             targets: 抽卡目标
@@ -661,71 +762,9 @@ class GoalProbabilityCalculator:
         if start is None:
             start = StartState()
 
-        # 快速路径：如果不需要抽任何东西，直接返回0抽
-        total_needed = targets.total_target_copies()
-        if total_needed == 0:
-            return {
-                "strategy": strategy,
-                "required_pulls": 0,
-                "targets": {
-                    "five_star_up_character_1": targets.five_star_up_character_1,
-                    "five_star_up_character_2": targets.five_star_up_character_2,
-                    "five_star_up_weapon_1": targets.five_star_up_weapon_1,
-                    "five_star_up_weapon_2": targets.five_star_up_weapon_2
-                }
-            }
-
-        # 计算最大可能的抽数（100%概率）
-        max_pulls = (
-            (targets.five_star_up_character_1 * 180) +
-            (targets.five_star_up_character_2 * 180) +
-            (targets.five_star_up_weapon_1 * 160) +
-            (targets.five_star_up_weapon_2 * 160)
-        )
-        
-        # 二分查找范围，确保覆盖所有可能的情况
-        low = total_needed  # 最小可能的抽数
-        high = max_pulls  # 最大可能的抽数，使用与100%概率相同的上限
-
-        # 初始化结果
-        required_pulls = high
-
-        # 二分查找
-        while low <= high:
-            mid = (low + high) // 2
-            
-            # 计算当前抽数下的概率
-            # 早期迭代使用较少的模拟次数，加快搜索速度
-            # 后期迭代使用更多的模拟次数，提高精度
-            trials = 1000 if abs(mid - (low + high) // 2) > 30 else 5000
-            
-            result = self.estimate_goal_probability(
-                pulls=mid,
-                targets=targets,
-                trials=trials,
-                strategy=strategy,
-                seed=seed,
-                start=start,
-                draw_character_module=draw_character_module,
-                draw_character2_module=draw_character2_module,
-                draw_weapon_module=draw_weapon_module,
-            )
-            
-            probability = result["probability"]
-            
-            if probability >= 0.5:
-                # 找到一个可行的抽数，尝试找更小的
-                required_pulls = mid
-                high = mid - 1
-            else:
-                # 概率不够，需要更多抽数
-                low = mid + 1
-
-        # 验证最终结果，使用较多的模拟次数确保精度
-        final_result = self.estimate_goal_probability(
-            pulls=required_pulls,
+        required_pulls, final_result = self._find_first_pulls_meeting_probability(
             targets=targets,
-            trials=5000,
+            target_probability=0.50,
             strategy=strategy,
             seed=seed,
             start=start,
@@ -757,7 +796,7 @@ class GoalProbabilityCalculator:
         """
         # 解析请求参数
         pulls = request_data.get('resources', 0)
-        trials = request_data.get('trials', 10000)
+        trials = request_data.get('trials', self.DEFAULT_TRIALS)
         strategy = request_data.get('strategy', 'character_then_weapon')
         seed = request_data.get('seed', None)
 
@@ -807,32 +846,33 @@ class GoalProbabilityCalculator:
             five_star_up_weapon_2=request_data.get('target_five_star_up_weapon_2', 0)
         )
 
-        strategy = request_data.get('strategy', 'character_then_weapon')
-        seed = request_data.get('seed', None)
-
         # 导入模块
         import backend.wish.CharacterWish as draw_character_module
         import backend.wish.CharacterWish2 as draw_character2_module
         import backend.wish.WeaponWish as draw_weapon_module
 
-        # 根据概率调用不同的方法
-        if probability == 0.5:
-            result = self.calculate_required_pulls_for_50_percent_probability(
-                targets=targets,
-                strategy=strategy,
-                seed=seed,
-                draw_character_module=draw_character_module,
-                draw_character2_module=draw_character2_module,
-                draw_weapon_module=draw_weapon_module
-            )
-        else:  # 0.95
+        # 根据概率选择计算方法
+        if probability == 0.95:
             result = self.calculate_required_pulls_for_95_percent_probability(
                 targets=targets,
-                strategy=strategy,
-                seed=seed,
+                strategy="character_then_weapon",
+                seed=None,
+                start=StartState(),
                 draw_character_module=draw_character_module,
                 draw_character2_module=draw_character2_module,
                 draw_weapon_module=draw_weapon_module
             )
+        elif probability == 0.5:
+            result = self.calculate_required_pulls_for_50_percent_probability(
+                targets=targets,
+                strategy="character_then_weapon",
+                seed=None,
+                start=StartState(),
+                draw_character_module=draw_character_module,
+                draw_character2_module=draw_character2_module,
+                draw_weapon_module=draw_weapon_module
+            )
+        else:
+            raise ValueError(f"Invalid probability: {probability}. Must be 0.5 or 0.95")
 
         return result

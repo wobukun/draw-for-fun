@@ -13,7 +13,7 @@
         <h2>输入您的资源与目标</h2>
         <div class="form-grid">
           <div class="form-group">
-            <label for="resources">拥有的纠缠之缘数量</label>
+            <label for="resources">拥有的<span class="gradient-text-fate">纠缠之缘</span>数量</label>
             <input
               id="resources"
               type="number"
@@ -25,7 +25,7 @@
           </div>
 
           <div class="form-group">
-            <label for="primogems">拥有的原石数量</label>
+            <label for="primogems">拥有的<span class="light-blue-text">原石</span>数量</label>
             <input
               id="primogems"
               type="number"
@@ -38,7 +38,7 @@
           </div>
 
           <div class="form-group">
-            <label for="crystals">拥有的创世结晶数量</label>
+            <label for="crystals">拥有的<span class="light-blue-text">创世结晶</span>数量</label>
             <input
               id="crystals"
               type="number"
@@ -55,24 +55,25 @@
               <label class="toggle-label">
                 <input
                   type="checkbox"
-                  v-model="form.includeCharacter"
+                  v-model="form.includeCharacter1"
+                  @change="onCharacter1Toggle"
                 />
-                <span>本次抽取角色</span>
+                <span>本次抽取<span class="gold-text">5⭐UP角色-1</span><span class="type-icon character-icon">👤</span></span>
               </label>
             </div>
-            <label for="character-constellation">
-              目标角色<span style="color: #e8b4b8;">命之座层数</span>（UP 角色）
+            <label for="character1-target">
+              目标<span style="color: #e8b4b8;">命之座层数</span>（UP角色-1）
             </label>
             <input
-              id="character-constellation"
+              id="character1-target"
               type="number"
               min="0"
               max="6"
-              :disabled="!form.includeCharacter"
-              v-model.number="form.targetCharacterConstellation"
+              :disabled="!form.includeCharacter1"
+              v-model.number="form.targetCharacterConstellation1"
             />
             <p class="helper-text">
-              0 命 = 需要 1 个 UP 角色，1 命 = 2 个 UP 角色，以此类推。
+              0命=1个角色，6命=7个角色。
             </p>
           </div>
 
@@ -81,43 +82,103 @@
               <label class="toggle-label">
                 <input
                   type="checkbox"
-                  v-model="form.includeWeapon"
+                  v-model="form.includeCharacter2"
+                  @change="onCharacter2Toggle"
                 />
-                <span>本次抽取武器</span>
+                <span>本次抽取<span class="gold-text">5⭐UP角色-2</span><span class="type-icon character-icon">👤</span></span>
               </label>
             </div>
-            <label for="weapon-refinement">
-              目标武器<span style="color: #e8b4b8;">精炼等级</span>（定轨武器）
+            <label for="character2-target">
+              目标<span style="color: #e8b4b8;">命之座层数</span>（UP角色-2）
             </label>
             <input
-              id="weapon-refinement"
+              id="character2-target"
               type="number"
-              min="1"
-              max="5"
-              :disabled="!form.includeWeapon"
-              v-model.number="form.targetWeaponRefinement"
+              min="0"
+              max="6"
+              :disabled="!form.includeCharacter2"
+              v-model.number="form.targetCharacterConstellation2"
             />
             <p class="helper-text">
-              1 精 = 需要 1 把定轨武器，2 精 = 2 把定轨武器，以此类推。
+              0命=1个角色，6命=7个角色。
             </p>
           </div>
 
-          <div class="form-group checkbox-group full-width">
+          <div class="form-group">
+            <div class="toggle-row">
+              <label class="toggle-label">
+                <input
+                  type="checkbox"
+                  v-model="form.includeWeapon1"
+                  @change="onWeapon1Toggle"
+                />
+                <span>本次抽取<span class="gold-text">5⭐UP武器-1</span><span class="type-icon weapon-icon">⚔️</span></span>
+              </label>
+            </div>
+            <label for="weapon1-target">
+              目标<span style="color: #e8b4b8;">精炼等级</span>（UP武器-1）
+            </label>
             <input
-              type="checkbox"
-              id="calculateExpectedPulls"
-              v-model="form.calculateExpectedPulls"
-            >
-            <label for="calculateExpectedPulls">同时计算：达成目标所需总抽数（期望）</label>
+              id="weapon1-target"
+              type="number"
+              min="1"
+              max="5"
+              :disabled="!form.includeWeapon1"
+              v-model.number="form.targetWeaponRefinement1"
+            />
+            <p class="helper-text">
+              1精=1把武器，5精=5把武器。
+            </p>
           </div>
-          
-          <div class="form-group checkbox-group full-width">
+
+          <div class="form-group">
+            <div class="toggle-row">
+              <label class="toggle-label">
+                <input
+                  type="checkbox"
+                  v-model="form.includeWeapon2"
+                  @change="onWeapon2Toggle"
+                />
+                <span>本次抽取<span class="gold-text">5⭐UP武器-2</span><span class="type-icon weapon-icon">⚔️</span></span>
+              </label>
+            </div>
+            <label for="weapon2-target">
+              目标<span style="color: #e8b4b8;">精炼等级</span>（UP武器-2）
+            </label>
             <input
-              type="checkbox"
-              id="calculateRequiredPulls"
-              v-model="form.calculateRequiredPulls"
-            >
-            <label for="calculateRequiredPulls">同时计算：达成目标所需总抽数（保底）</label>
+              id="weapon2-target"
+              type="number"
+              min="1"
+              max="5"
+              :disabled="!form.includeWeapon2"
+              v-model.number="form.targetWeaponRefinement2"
+            />
+            <p class="helper-text">
+              1精=1把武器，5精=5把武器。
+            </p>
+          </div>
+
+        </div>
+
+        <div class="extra-options-section">
+          <div class="extra-options-title">额外计算选项</div>
+          <div class="extra-options-grid">
+            <div class="checkbox-item">
+              <input
+                type="checkbox"
+                id="calculateExpectedPulls"
+                v-model="form.calculateExpectedPulls"
+              >
+              <label for="calculateExpectedPulls">计算达成目标所需总抽数（期望）</label>
+            </div>
+            <div class="checkbox-item">
+              <input
+                type="checkbox"
+                id="calculateRequiredPulls"
+                v-model="form.calculateRequiredPulls"
+              >
+              <label for="calculateRequiredPulls">计算达成目标所需总抽数（保底）</label>
+            </div>
           </div>
         </div>
 
@@ -141,7 +202,7 @@
         <p class="error-message">{{ errorMessage }}</p>
       </div>
 
-      <div v-if="result" class="card result-card">
+      <div v-if="result" class="card result-card results-section">
         <h2>计算结果</h2>
 
         <div class="result-summary">
@@ -150,26 +211,44 @@
             <div class="summary-value">{{ result.resources }} 抽</div>
           </div>
           <div class="summary-item">
-            <div class="summary-label">角色目标</div>
+            <div class="summary-label">5星UP角色-1</div>
             <div class="summary-value">
-              <span v-if="result.targets.character_target_copies > 0">
-                需要 {{ result.targets.character_target_copies }} 个 UP 角色
+              <span v-if="result.targets.five_star_up_character_1 > 0">
+                {{ result.targets.five_star_up_character_1 - 1 }} 命（{{ result.targets.five_star_up_character_1 }} 个）
               </span>
               <span v-else>无目标</span>
             </div>
           </div>
           <div class="summary-item">
-            <div class="summary-label">武器目标</div>
+            <div class="summary-label">5星UP角色-2</div>
             <div class="summary-value">
-              <span v-if="result.targets.weapon_target_copies > 0">
-                需要 {{ result.targets.weapon_target_copies }} 把定轨武器
+              <span v-if="result.targets.five_star_up_character_2 > 0">
+                {{ result.targets.five_star_up_character_2 - 1 }} 命（{{ result.targets.five_star_up_character_2 }} 个）
+              </span>
+              <span v-else>无目标</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">5星UP武器-1</div>
+            <div class="summary-value">
+              <span v-if="result.targets.five_star_up_weapon_1 > 0">
+                {{ result.targets.five_star_up_weapon_1 }} 精（{{ result.targets.five_star_up_weapon_1 }} 把）
+              </span>
+              <span v-else>无目标</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">5星UP武器-2</div>
+            <div class="summary-value">
+              <span v-if="result.targets.five_star_up_weapon_2 > 0">
+                {{ result.targets.five_star_up_weapon_2 }} 精（{{ result.targets.five_star_up_weapon_2 }} 把）
               </span>
               <span v-else>无目标</span>
             </div>
           </div>
         </div>
 
-        <div class="probability-section">
+        <div class="probability-section probability-top">
           <h3>达成目标概率（先角色，后武器策略）</h3>
           <div class="probability-main">
             <div class="probability-value">
@@ -187,7 +266,8 @@
           </div>
         </div>
 
-        <div v-if="requiredPullsFor50Percent" class="probability-section">
+        <div v-if="requiredPullsFor50Percent" class="probability-section section-with-separator">
+          <div class="section-divider"></div>
           <h3>达成目标所需总抽数（期望，按50%概率分位计算）：</h3>
           <div class="probability-main">
             <div class="probability-value">
@@ -196,9 +276,7 @@
             <div class="probability-detail">
               达成目标概率达到50%时所需总抽数
             </div>
-            <div class="probability-detail secondary">
-              目标：角色 {{ requiredPullsFor50Percent.character_target_constellation }} 命，武器 {{ requiredPullsFor50Percent.weapon_target_refinement }} 精
-            </div>
+
           </div>
         </div>
         
@@ -214,7 +292,8 @@
           </div>
         </div>
         
-        <div v-if="requiredPullsFor95Percent" class="probability-section">
+        <div v-if="requiredPullsFor95Percent" class="probability-section section-with-separator">
+          <div class="section-divider"></div>
           <h3>达成目标所需总抽数（保底，按95%概率分位计算）：</h3>
           <div class="probability-main">
             <div class="probability-value">
@@ -223,9 +302,7 @@
             <div class="probability-detail">
               达成目标概率达到95%时所需总抽数
             </div>
-            <div class="probability-detail secondary">
-              目标：角色 {{ requiredPullsFor95Percent.character_target_constellation }} 命，武器 {{ requiredPullsFor95Percent.weapon_target_refinement }} 精
-            </div>
+
           </div>
         </div>
         
@@ -265,11 +342,15 @@ export default {
         resources: 0,
         primogems: 0,
         crystals: 0,
-        targetCharacterConstellation: 0,
-        targetWeaponRefinement: 1,
+        targetCharacterConstellation1: 0,
+        targetCharacterConstellation2: 0,
+        targetWeaponRefinement1: 1,
+        targetWeaponRefinement2: 1,
         trials: 5000,
-        includeCharacter: true,
-        includeWeapon: true,
+        includeCharacter1: true,
+        includeCharacter2: false,
+        includeWeapon1: true,
+        includeWeapon2: false,
         calculateRequiredPulls: false,
         calculateExpectedPulls: false
       },
@@ -278,7 +359,9 @@ export default {
       result: null,
       requiredPullsFor95Percent: null,
       requiredPullsFor50Percent: null,
-      showBackToTop: false
+      showBackToTop: false,
+      cancelToken: null,
+      isMounted: true
     }
   },
   computed: {
@@ -317,31 +400,54 @@ export default {
         return '总抽数必须 >= 0。'
       }
       
-      // 角色：仅在勾选时校验，范围 0-6
-      if (this.form.includeCharacter) {
+      // 5星UP角色-1：仅在勾选时校验，命之座范围 0-6
+      if (this.form.includeCharacter1) {
         if (
-          this.form.targetCharacterConstellation === null ||
-          this.form.targetCharacterConstellation < 0 ||
-          this.form.targetCharacterConstellation > 6
+          this.form.targetCharacterConstellation1 === null ||
+          this.form.targetCharacterConstellation1 < 0 ||
+          this.form.targetCharacterConstellation1 > 6
         ) {
-          return '角色命之座层数必须在 0 - 6 之间。'
+          return '命之座层数必须在 0 - 6 之间。'
         }
       }
       
-      // 武器：仅在勾选时校验，范围 1-5
-      if (this.form.includeWeapon) {
+      // 5星UP角色-2：仅在勾选时校验，命之座范围 0-6
+      if (this.form.includeCharacter2) {
         if (
-          this.form.targetWeaponRefinement === null ||
-          this.form.targetWeaponRefinement < 1 ||
-          this.form.targetWeaponRefinement > 5
+          this.form.targetCharacterConstellation2 === null ||
+          this.form.targetCharacterConstellation2 < 0 ||
+          this.form.targetCharacterConstellation2 > 6
         ) {
-          return '武器精炼等级必须在 1 - 5 之间。'
+          return '命之座层数必须在 0 - 6 之间。'
         }
       }
       
-      // 至少选择一个目标（角色或武器）
-      if (!this.form.includeCharacter && !this.form.includeWeapon) {
-        return '请至少选择一个目标（角色命之座或武器精炼）。'
+      // 5星UP武器-1：仅在勾选时校验，精炼范围 1-5
+      if (this.form.includeWeapon1) {
+        if (
+          this.form.targetWeaponRefinement1 === null ||
+          this.form.targetWeaponRefinement1 < 1 ||
+          this.form.targetWeaponRefinement1 > 5
+        ) {
+          return '精炼等级必须在 1 - 5 之间。'
+        }
+      }
+      
+      // 5星UP武器-2：仅在勾选时校验，精炼范围 1-5
+      if (this.form.includeWeapon2) {
+        if (
+          this.form.targetWeaponRefinement2 === null ||
+          this.form.targetWeaponRefinement2 < 1 ||
+          this.form.targetWeaponRefinement2 > 5
+        ) {
+          return '精炼等级必须在 1 - 5 之间。'
+        }
+      }
+      
+      // 至少选择一个目标
+      if (!this.form.includeCharacter1 && !this.form.includeCharacter2 && 
+          !this.form.includeWeapon1 && !this.form.includeWeapon2) {
+        return '请至少选择一个目标（角色或武器）。'
       }
       
       return ''
@@ -350,7 +456,35 @@ export default {
       // 此方法用于触发计算属性更新
       // 实际计算逻辑在 computed.totalResources 中
     },
+    onCharacter1Toggle() {
+      if (this.form.includeCharacter1 && this.form.targetCharacterConstellation1 === null) {
+        this.form.targetCharacterConstellation1 = 0
+      }
+    },
+    onCharacter2Toggle() {
+      if (this.form.includeCharacter2 && this.form.targetCharacterConstellation2 === null) {
+        this.form.targetCharacterConstellation2 = 0
+      }
+    },
+    onWeapon1Toggle() {
+      if (this.form.includeWeapon1 && this.form.targetWeaponRefinement1 === null) {
+        this.form.targetWeaponRefinement1 = 1
+      }
+    },
+    onWeapon2Toggle() {
+      if (this.form.includeWeapon2 && this.form.targetWeaponRefinement2 === null) {
+        this.form.targetWeaponRefinement2 = 1
+      }
+    },
     calculate() {
+      // 取消之前的请求
+      if (this.cancelToken) {
+        this.cancelToken.cancel('Operation canceled by user')
+      }
+      
+      // 创建新的取消令牌
+      this.cancelToken = axios.CancelToken.source()
+      
       this.errorMessage = ''
       const msg = this.validateForm()
       if (msg) {
@@ -360,49 +494,73 @@ export default {
       this.isLoading = true
       this.result = null
 
+      // 将命之座/精炼等级转换为实际数量
+      // 角色：0命=1个，6命=7个（命之座+1）
+      // 武器：1精=1把，5精=5把（精炼等级=数量）
+      // 使用 || 0 确保数值有效
+      const char1Const = this.form.targetCharacterConstellation1 || 0
+      const char2Const = this.form.targetCharacterConstellation2 || 0
+      const weap1Ref = this.form.targetWeaponRefinement1 || 1
+      const weap2Ref = this.form.targetWeaponRefinement2 || 1
+      
+      const char1Copies = this.form.includeCharacter1 ? (char1Const + 1) : 0
+      const char2Copies = this.form.includeCharacter2 ? (char2Const + 1) : 0
+      const weap1Copies = this.form.includeWeapon1 ? weap1Ref : 0
+      const weap2Copies = this.form.includeWeapon2 ? weap2Ref : 0
+
       const payload = {
         resources: this.totalResources,
         strategy: "character_first",
-        trials: this.form.trials
-      }
-
-      if (this.form.includeCharacter) {
-        payload.target_character_constellation = this.form.targetCharacterConstellation
-      }
-
-      if (this.form.includeWeapon) {
-        payload.target_weapon_refinement = this.form.targetWeaponRefinement
+        trials: this.form.trials,
+        // 转换为实际数量
+        five_star_up_character_1: char1Copies,
+        five_star_up_character_2: char2Copies,
+        five_star_up_weapon_1: weap1Copies,
+        five_star_up_weapon_2: weap2Copies
       }
 
       // 准备API调用
       const apiCalls = [
         // 计算达成目标概率
-        axios.post('/api/goal_probability', payload)
+        axios.post('/api/goal_probability', payload, {
+          cancelToken: this.cancelToken.token
+        })
       ]
       
       // 根据用户选择决定是否添加50%概率所需抽数（期望）的计算
       if (this.form.calculateExpectedPulls) {
         const expectedPullsPayload = {
-          character_target_constellation: this.form.includeCharacter ? this.form.targetCharacterConstellation : 0,
-          weapon_target_refinement: this.form.includeWeapon ? this.form.targetWeaponRefinement : 0,
+          five_star_up_character_1: char1Copies,
+          five_star_up_character_2: char2Copies,
+          five_star_up_weapon_1: weap1Copies,
+          five_star_up_weapon_2: weap2Copies,
           strategy: "character_then_weapon"
         }
-        apiCalls.push(axios.post('/api/required_pulls_for_50_percent', expectedPullsPayload))
+        apiCalls.push(axios.post('/api/required_pulls_for_50_percent', expectedPullsPayload, {
+          cancelToken: this.cancelToken.token
+        }))
       }
       
       // 根据用户选择决定是否添加95%概率所需抽数的计算
       if (this.form.calculateRequiredPulls) {
         const requiredPullsPayload = {
-          character_target_constellation: this.form.includeCharacter ? this.form.targetCharacterConstellation : 0,
-          weapon_target_refinement: this.form.includeWeapon ? this.form.targetWeaponRefinement : 0,
+          five_star_up_character_1: char1Copies,
+          five_star_up_character_2: char2Copies,
+          five_star_up_weapon_1: weap1Copies,
+          five_star_up_weapon_2: weap2Copies,
           strategy: "character_then_weapon"
         }
-        apiCalls.push(axios.post('/api/required_pulls_for_95_percent', requiredPullsPayload))
+        apiCalls.push(axios.post('/api/required_pulls_for_95_percent', requiredPullsPayload, {
+          cancelToken: this.cancelToken.token
+        }))
       }
       
       // 并行执行所有API调用
       Promise.all(apiCalls)
         .then((responses) => {
+          // 检查组件是否仍然挂载
+          if (!this.isMounted) return
+          
           // 处理第一个响应（达成目标概率）
           if (responses[0]) {
             this.result = responses[0].data
@@ -457,14 +615,33 @@ export default {
             // 如果用户不选择计算，则清空之前的结果
             this.requiredPullsFor95Percent = null
           }
+          
+          this.isLoading = false
+          
+          // 计算完成后滑动到结果
+          // 使用$nextTick确保DOM更新完成后再滚动
+          this.$nextTick(() => {
+            this.scrollToResults()
+          })
         })
         .catch((error) => {
+          // 忽略取消请求的错误
+          if (axios.isCancel(error)) {
+            console.log('请求已取消:', error.message)
+            return
+          }
+          // 检查组件是否仍然挂载
+          if (!this.isMounted) return
+          
           console.error('计算失败:', error)
           this.errorMessage =
             (error.response && error.response.data && error.response.data.error) ||
             '计算失败，请检查输入参数是否正确'
         })
         .finally(() => {
+          // 检查组件是否仍然挂载
+          if (!this.isMounted) return
+          
           this.isLoading = false
         })
     },
@@ -483,16 +660,32 @@ export default {
         behavior: 'smooth'
       })
     },
+    scrollToResults() {
+      // 找到结果部分的元素并滚动到那里
+      const resultsSection = document.querySelector('.results-section')
+      if (resultsSection) {
+        resultsSection.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        })
+      }
+    },
     handleScroll() {
       // 简化判断，只要滚动了就显示按钮
       this.showBackToTop = window.scrollY > 100
     }
   },
   mounted() {
+    this.isMounted = true
     window.addEventListener('scroll', this.handleScroll)
   },
   beforeUnmount() {
+    this.isMounted = false
     window.removeEventListener('scroll', this.handleScroll)
+    // 取消未完成的API请求
+    if (this.cancelToken) {
+      this.cancelToken.cancel('Component unmounted')
+    }
   }
 }
 </script>
@@ -757,6 +950,29 @@ h1 {
   margin-top: 12px;
 }
 
+.probability-top {
+  margin-bottom: 24px;
+}
+
+.probability-bottom {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* 带分隔线的区块样式 */
+.section-with-separator {
+  margin-top: 32px;
+  padding-top: 8px;
+}
+
+.section-divider {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #cbd5e0, transparent);
+  margin-bottom: 20px;
+  margin-top: -8px;
+}
+
 .probability-section h3 {
   font-size: 16px;
   margin-bottom: 8px;
@@ -891,5 +1107,81 @@ h1 {
 .back-to-top:active {
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(148, 163, 184, 0.3);
+}
+
+/* 纠缠之缘 - 粉蓝色渐变色 */
+.gradient-text-fate {
+  background: linear-gradient(135deg, #ff6b9d 0%, #4facfe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 600;
+}
+
+/* 原石、创世结晶 - 浅蓝色 */
+.light-blue-text {
+  color: #63b3ed;
+  font-weight: 600;
+}
+
+/* 5星UP角色/武器 - 橙色 */
+.gold-text {
+  color: #ff8c00;
+  font-weight: 600;
+}
+
+/* 类型图标 */
+.type-icon {
+  margin-left: 4px;
+  font-size: 14px;
+}
+
+.character-icon {
+  color: #4a90e2;
+}
+
+.weapon-icon {
+  color: #e74c3c;
+}
+
+/* 额外计算选项区域 */
+.extra-options-section {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.extra-options-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 12px;
+}
+
+.extra-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.checkbox-item label {
+  font-size: 14px;
+  color: #4a5568;
+  cursor: pointer;
+  user-select: none;
 }
 </style>
