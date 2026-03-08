@@ -240,13 +240,13 @@ class GoalProbabilityCalculator:
             
             if remaining_weap1 > 0 and remaining_weap2 > 0:
                 # 两个都还需要，定轨剩余需求更多的那把
-                weap_sim.selected_fate_weapon = '5星UP武器-1' if remaining_weap1 >= remaining_weap2 else '5星UP武器-2'
+                weap_sim.set_fate_weapon('5星UP武器-1' if remaining_weap1 >= remaining_weap2 else '5星UP武器-2')
             elif remaining_weap1 > 0:
-                weap_sim.selected_fate_weapon = '5星UP武器-1'
+                weap_sim.set_fate_weapon('5星UP武器-1')
             elif remaining_weap2 > 0:
-                weap_sim.selected_fate_weapon = '5星UP武器-2'
+                weap_sim.set_fate_weapon('5星UP武器-2')
             else:
-                weap_sim.selected_fate_weapon = None
+                weap_sim.set_fate_weapon(None)
         
         # 初始化定轨武器
         update_fate_weapon(0, 0)
@@ -306,9 +306,8 @@ class GoalProbabilityCalculator:
                 # 抽到常驻5星武器，且两把武器都还需要
                 # 取消定轨并重新定轨离目标更远的那把
                 if got_weap1 < need_weap1 and got_weap2 < need_weap2:
-                    # 取消定轨
-                    weap_sim.selected_fate_weapon = None
-                    # 重新定轨离目标更远的那把
+                    # 取消定轨并重新定轨离目标更远的那把
+                    # update_fate_weapon 会调用 set_fate_weapon，自动重置命定值
                     update_fate_weapon(got_weap1, got_weap2)
             # 提前终止检查
             if (
