@@ -487,7 +487,8 @@ class WeaponWishSimulator:
                     'min_pulls': 0,
                     'max_pulls': 0
                 },
-                'five_star_costs': []
+                'five_star_costs': [],
+                'strategy': strategy
             }
 
         # 起始状态（不修改 self）
