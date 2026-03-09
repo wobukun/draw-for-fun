@@ -46,7 +46,7 @@ PITY_INCREASE = 0.06  # 每超过保底阈值一次，5星概率额外提升 6%
 FIVE_STAR_PITY_MAX = 89  # 5星必定出保底（第90抽）
 FIVE_STAR_UP_RATE = 0.5  # 小保底：50%概率为UP角色
 CAPTURE_MINGUANG_BASE_RATE = 0.00018  # 捕获明光机制的基础概率 0.018%
-CAPTURE_MINGUANG_MAX_COUNTER = 3  # 捕获明光计数器最大值
+CAPTURE_MINGUANG_COUNTER_MAX = 3  # 捕获明光计数器最大值
 
 # 4星物品概率设置
 FOUR_STAR_BASE_RATE = 0.051  # 4星物品基础概率 5.100%
@@ -91,7 +91,7 @@ class CharacterWishSimulator2:
                  pity_increase: float = PITY_INCREASE, five_star_pity_max: int = FIVE_STAR_PITY_MAX, 
                  five_star_up_rate: float = FIVE_STAR_UP_RATE, seed: int | None = None, 
                  capture_minguang_base_rate: float = CAPTURE_MINGUANG_BASE_RATE,
-                 capture_minguang_max_counter: int = CAPTURE_MINGUANG_MAX_COUNTER,
+                 capture_minguang_counter_max: int = CAPTURE_MINGUANG_COUNTER_MAX,
                  four_star_base_rate: float = FOUR_STAR_BASE_RATE, four_star_pity_threshold: int = FOUR_STAR_PITY_THRESHOLD,
                  four_star_pity_increase: float = FOUR_STAR_PITY_INCREASE, four_star_up_rate: float = FOUR_STAR_UP_RATE,
                  four_star_up_characters: list = FOUR_STAR_UP_CHARACTERS):
@@ -120,9 +120,8 @@ class CharacterWishSimulator2:
         self.four_star_up_rate = float(four_star_up_rate)  # 4★ UP概率
         self.rng = np.random.default_rng(seed)  # 随机数生成器
         self.capture_minguang_base_rate = float(capture_minguang_base_rate)  # 捕获明光基础触发概率
-        self.capture_minguang_max_counter = int(capture_minguang_max_counter)  # 捕获明光计数器最大值
-        self.migu_counter = 0  # 捕获明光计数器（记录连续通过大保底抽到UP5星角色的次数，达到最大值时必定触发捕获明光）
-        self.guarantee_capture_minguang = False  # 下次抽中5星角色时是否必定触发捕获明光
+        self.capture_minguang_counter_max = int(capture_minguang_counter_max)  # 捕获明光计数器最大值
+        self.capture_minguang_counter = 0  # 捕获明光计数器（记录连续通过大保底抽到UP5星角色的次数，达到最大值时必定触发捕获明光）
         self.capture_minguang_count = 0  # 捕获明光触发总次数
         self.four_star_up_characters = four_star_up_characters  # 4星UP角色列表
 
@@ -166,7 +165,6 @@ class CharacterWishSimulator2:
         """
         # 计算5星概率
         five_star_prob = self.current_five_star_rate(self.pity)
-        five_star_prob = min(1.0, five_star_prob)
         
         # 先判断是否命中5星
         is_5star = self.rng.random() < five_star_prob
@@ -179,13 +177,12 @@ class CharacterWishSimulator2:
         if is_5star:
             # 命中5星
             # 先判断捕获明光计数器是否为最大值，若是则必定触发捕获明光
-            if self.migu_counter >= self.capture_minguang_max_counter:
+            if self.capture_minguang_counter >= self.capture_minguang_counter_max:
                 capture_minguang_triggered = True
                 is_up = True
                 self.up_count += 1
                 self.capture_minguang_count += 1  # 增加捕获明光触发次数
-                self.guarantee_capture_minguang = False
-                self.migu_counter = 0
+                self.capture_minguang_counter = 0
                 self.guarantee_up = False
             else:
                 # 检查是否触发大保底
@@ -195,7 +192,7 @@ class CharacterWishSimulator2:
                     self.guarantee_up = False
                     self.up_count += 1
                     # 捕获明光计数器+1（触发大保底时），最高为最大值
-                    self.migu_counter = min(self.migu_counter + 1, self.capture_minguang_max_counter)
+                    self.capture_minguang_counter = min(self.capture_minguang_counter + 1, self.capture_minguang_counter_max)
                 else:
                     # 尝试触发捕获明光
                     capture_minguang_triggered = self.rng.random() < self.capture_minguang_base_rate
@@ -203,16 +200,15 @@ class CharacterWishSimulator2:
                         is_up = True
                         self.up_count += 1
                         self.capture_minguang_count += 1  # 增加捕获明光触发次数
-                        self.guarantee_capture_minguang = False
-                        self.migu_counter = 0
+                        self.capture_minguang_counter = 0
                         self.guarantee_up = False
                     else:
                         # 小保底：UP 概率为 self.five_star_up_rate，其余概率为常驻
                         is_up = self.rng.random() < self.five_star_up_rate
                         if is_up:
                             self.up_count += 1
-                            # 小保底时清零捕获明光计数器
-                            self.migu_counter = 0
+                            # 小保底命中UP时清零捕获明光计数器
+                            self.capture_minguang_counter = 0
                         else:
                             self.avg_count += 1
                             self.guarantee_up = True  # 下次必定 UP
@@ -315,7 +311,7 @@ class CharacterWishSimulator2:
 
         返回结构：{"results": [bool], "four_star_results": [bool], "new_pity": int, "new_four_star_pity": int, "used_probs": [float], "is_up": [bool], "is_four_star_up": [bool], "four_star_items": [str],
                   "avg_count": int, "up_count": int, "four_star_up_count": int, "four_star_avg_count": int, "up_pity": int, "start_up_pity": int, "guarantee_up": bool, "guarantee_four_star_up": bool,
-                  "capture_minguang": [bool], "migu_counter": int, "guarantee_capture_minguang": bool, "capture_minguang_count": int}。
+                  "capture_minguang": [bool], "capture_minguang_counter": int, "capture_minguang_count": int}。
         """
         start_up_pity = self.up_pity
         is_5star, is_4star, new_pity, new_four_star_pity, prob, is_up, is_four_star_up, capture_minguang, four_star_item = self.draw_once()
@@ -341,8 +337,7 @@ class CharacterWishSimulator2:
             "guarantee_up": self.guarantee_up,
             "guarantee_four_star_up": self.guarantee_four_star_up,
             "capture_minguang": [capture_minguang],
-            "migu_counter": self.migu_counter,
-            "guarantee_capture_minguang": self.guarantee_capture_minguang,
+            "capture_minguang_counter": self.capture_minguang_counter,
             "capture_minguang_count": self.capture_minguang_count,
             "last_five_star_cost": self.last_five_star_cost
         }
@@ -376,8 +371,7 @@ class CharacterWishSimulator2:
             "total_pulls": self.total_pulls,
             "guarantee_up": self.guarantee_up,
             "guarantee_four_star_up": self.guarantee_four_star_up,
-            "migu_counter": self.migu_counter,
-            "guarantee_capture_minguang": self.guarantee_capture_minguang,
+            "capture_minguang_counter": self.capture_minguang_counter,
             "capture_minguang_count": self.capture_minguang_count,
             "last_five_star_cost": self.last_five_star_cost
         }
@@ -443,37 +437,35 @@ class CharacterWishSimulator2:
             }
 
         # 起始状态（不修改 self）
-        current_pity = int(self.pity)
-        current_four_star_pity = int(self.four_star_pity)
-        current_guarantee = bool(self.guarantee_up)
-        current_guarantee_four_star_up = bool(self.guarantee_four_star_up)
-        current_capture_minguang_guarantee = False
-        current_migu_counter = 0
+        current_pity = int(self.pity)  # 当前5星保底计数
+        current_four_star_pity = int(self.four_star_pity)  # 当前4星保底计数
+        current_guarantee = bool(self.guarantee_up)  # 是否触发5星大保底
+        current_guarantee_four_star_up = bool(self.guarantee_four_star_up)  # 是否触发4星大保底
+        current_capture_minguang_counter = 0  # 捕获明光计数器
         current_capture_minguang_count = 0  # 捕获明光触发次数
-        current_up_count = 0
-        current_avg_count = 0
-        current_four_star_up_count = 0
-        current_four_star_avg_count = 0
-        current_four_star_up_1_count = 0
-        current_four_star_up_2_count = 0
-        current_four_star_up_3_count = 0
-        total_hits = 0
-        total_four_star_hits = 0
-        current_last_five_star_cost = 0  # 上一个5星花费的抽数
+        current_up_count = 0  # 5星UP角色获取数量
+        current_avg_count = 0  # 5星常驻角色获取数量
+        current_four_star_up_count = 0  # 4星UP物品获取数量
+        current_four_star_avg_count = 0  # 4星常驻物品获取数量
+        current_four_star_up_1_count = 0  # 4星UP角色-1获取数量
+        current_four_star_up_2_count = 0  # 4星UP角色-2获取数量
+        current_four_star_up_3_count = 0  # 4星UP角色-3获取数量
+        total_hits = 0  # 5星总命中次数
+        total_four_star_hits = 0  # 4星总命中次数
         
         # 记录抽卡过程
-        pity_history = []
-        four_star_pity_history = []
-        hit_positions = []
-        up_positions = []
-        avg_positions = []
-        four_star_positions = []
-        four_star_up_positions = []
+        pity_history = []  # 每次抽卡后的5星保底计数
+        four_star_pity_history = []  # 每次抽卡后的4星保底计数
+        hit_positions = []  # 5星命中位置列表
+        up_positions = []  # 5星UP角色命中位置列表
+        avg_positions = []  # 5星常驻角色命中位置列表
+        four_star_positions = []  # 4星命中位置列表
+        four_star_up_positions = []  # 4星UP物品命中位置列表
         # 记录每次5星所花费的抽数
-        five_star_costs = []
-        last_hit_position = 0
+        five_star_costs = []  # 5星抽数成本记录
+        last_hit_position = 0  # 上一次5星命中的位置
 
-        rs = self.rng
+        rs = self.rng  # 随机数生成器
 
         # 执行指定次数的抽卡
         for pull_num in range(1, total_pulls + 1):
@@ -498,14 +490,13 @@ class CharacterWishSimulator2:
                 
                 # 先判断捕获明光计数器是否为最大值，若是则必定触发捕获明光
                 capture_minguang = False
-                if current_migu_counter >= self.capture_minguang_max_counter:
+                if current_capture_minguang_counter >= self.capture_minguang_counter_max:
                     capture_minguang = True
                     is_up = True
                     current_up_count += 1
                     current_capture_minguang_count += 1  # 增加捕获明光触发次数
                     up_positions.append(pull_num)
-                    current_capture_minguang_guarantee = False
-                    current_migu_counter = 0
+                    current_capture_minguang_counter = 0
                     current_guarantee = False
                 else:
                     # 检查是否触发大保底
@@ -516,7 +507,7 @@ class CharacterWishSimulator2:
                         up_positions.append(pull_num)
                         current_guarantee = False
                         # 捕获明光计数器+1（触发大保底时），最高为最大值
-                        current_migu_counter = min(current_migu_counter + 1, self.capture_minguang_max_counter)
+                        current_capture_minguang_counter = min(current_capture_minguang_counter + 1, self.capture_minguang_counter_max)
                     else:
                         # 尝试触发捕获明光
                         capture_minguang = rs.random() < self.capture_minguang_base_rate
@@ -525,8 +516,7 @@ class CharacterWishSimulator2:
                             current_up_count += 1
                             current_capture_minguang_count += 1  # 增加捕获明光触发次数
                             up_positions.append(pull_num)
-                            current_capture_minguang_guarantee = False
-                            current_migu_counter = 0
+                            current_capture_minguang_counter = 0
                             current_guarantee = False
                         else:
                             # 小保底：UP 概率为 self.five_star_up_rate，其余概率为常驻
@@ -535,7 +525,7 @@ class CharacterWishSimulator2:
                                 current_up_count += 1
                                 up_positions.append(pull_num)
                                 # 小保底时清零捕获明光计数器
-                                current_migu_counter = 0
+                                current_capture_minguang_counter = 0
                             else:
                                 current_avg_count += 1
                                 avg_positions.append(pull_num)
@@ -549,7 +539,6 @@ class CharacterWishSimulator2:
                 })
                 
                 # 重置pity
-                current_last_five_star_cost = cost  # 记录上一个5星花费的抽数
                 current_pity = 0
                 current_four_star_pity += 1  # 命中5星时，4星pity仍加1
             else:
@@ -609,14 +598,38 @@ class CharacterWishSimulator2:
             four_star_pity_history.append(current_four_star_pity)
 
         # 计算数学统计信息
+        # 初始化统计信息字典
         stats = {
-            'avg_count': 0,
-            'median_count': 0,
-            'std_count': 0,
-            'min_count': 0,
-            'max_count': 0
+            # 5星UP角色统计信息
+            'five_star_up_avg_count': 0,  # 5星UP角色的平均抽数
+            'five_star_up_median_count': 0,  # 5星UP角色的中位数抽数
+            'five_star_up_std_count': 0,  # 5星UP角色的标准差
+            'five_star_up_min_count': 0,  # 5星UP角色的最小抽数
+            'five_star_up_max_count': 0,  # 5星UP角色的最大抽数
+            # 5星角色统计信息
+            'five_star_avg_count': 0,  # 5星角色的平均抽数
+            'five_star_median_count': 0,  # 5星角色的中位数抽数
+            'five_star_std_count': 0,  # 5星角色的标准差
+            'five_star_min_count': 0,  # 5星角色的最小抽数
+            'five_star_max_count': 0  # 5星角色的最大抽数
         }
 
+        # 计算5星角色的统计信息
+        if len(hit_positions) > 1:
+            import numpy as np
+            # 计算相邻5星之间的抽数间隔
+            five_star_intervals = []
+            for i in range(1, len(hit_positions)):
+                five_star_intervals.append(hit_positions[i] - hit_positions[i-1])
+            
+            if five_star_intervals:
+                stats['five_star_avg_count'] = float(np.mean(five_star_intervals))
+                stats['five_star_median_count'] = float(np.median(five_star_intervals))
+                stats['five_star_std_count'] = float(np.std(five_star_intervals))
+                stats['five_star_min_count'] = int(np.min(five_star_intervals))
+                stats['five_star_max_count'] = int(np.max(five_star_intervals))
+
+        # 计算5★UP角色的统计信息
         if len(up_positions) > 1:
             import numpy as np
             # 计算相邻UP之间的抽数间隔
@@ -625,11 +638,11 @@ class CharacterWishSimulator2:
                 intervals.append(up_positions[i] - up_positions[i-1])
             
             if intervals:
-                stats['avg_count'] = float(np.mean(intervals))
-                stats['median_count'] = float(np.median(intervals))
-                stats['std_count'] = float(np.std(intervals))
-                stats['min_count'] = int(np.min(intervals))
-                stats['max_count'] = int(np.max(intervals))
+                stats['five_star_up_avg_count'] = float(np.mean(intervals))
+                stats['five_star_up_median_count'] = float(np.median(intervals))
+                stats['five_star_up_std_count'] = float(np.std(intervals))
+                stats['five_star_up_min_count'] = int(np.min(intervals))
+                stats['five_star_up_max_count'] = int(np.max(intervals))
 
         return {
             'up_count': current_up_count,
@@ -640,16 +653,7 @@ class CharacterWishSimulator2:
             'four_star_up_3_count': current_four_star_up_3_count,
             'four_star_avg_count': current_four_star_avg_count,
             'total_hits': total_hits,
-            'total_four_star_hits': total_four_star_hits,
             'capture_minguang_count': current_capture_minguang_count,
             'five_star_costs': five_star_costs,
-            'pity_history': pity_history,
-            'four_star_pity_history': four_star_pity_history,
-            'hit_positions': hit_positions,
-            'up_positions': up_positions,
-            'avg_positions': avg_positions,
-            'four_star_positions': four_star_positions,
-            'four_star_up_positions': four_star_up_positions,
-            'stats': stats,
-            'last_five_star_cost': current_last_five_star_cost
+            'stats': stats
         }

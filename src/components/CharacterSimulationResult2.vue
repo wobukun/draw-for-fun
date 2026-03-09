@@ -74,24 +74,28 @@
           <h2>数学统计</h2>
           <div class="stats-grid math-stats">
             <div class="stat-item">
-              <div class="stat-label">5★UP角色的平均抽数</div>
-              <div class="stat-value">{{ (result.stats.avg_count || 0).toFixed(2) }}</div>
+              <div class="stat-label">5★角色平均抽数</div>
+              <div class="stat-value">{{ (result.stats.five_star_avg_count || 0).toFixed(2) }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">5★UP角色的中位数抽数</div>
-              <div class="stat-value">{{ (result.stats.median_count || 0).toFixed(2) }}</div>
+              <div class="stat-label">5★UP角色平均抽数</div>
+              <div class="stat-value">{{ (result.stats.five_star_up_avg_count || 0).toFixed(2) }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">5★UP角色中位数抽数</div>
+              <div class="stat-value">{{ (result.stats.five_star_up_median_count || 0).toFixed(2) }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">5★UP角色标准差</div>
-              <div class="stat-value">{{ (result.stats.std_count || 0).toFixed(2) }}</div>
+              <div class="stat-value">{{ (result.stats.five_star_up_std_count || 0).toFixed(2) }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">5★UP角色最小抽数</div>
-              <div class="stat-value">{{ result.stats.min_count || 0 }}</div>
+              <div class="stat-value">{{ result.stats.five_star_up_min_count || 0 }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">5★UP角色最大抽数</div>
-              <div class="stat-value">{{ result.stats.max_count || 0 }}</div>
+              <div class="stat-value">{{ result.stats.five_star_up_max_count || 0 }}</div>
             </div>
           </div>
         </div>
@@ -108,8 +112,14 @@
             </div>
           </div>
         </div>
+
       </div>
     </div>
+    
+    <!-- 返回顶部按钮 -->
+    <button class="back-to-top" @click="scrollToTop" v-show="showBackToTop">
+      TOP
+    </button>
   </div>
 </template>
 
@@ -130,39 +140,20 @@ export default {
         four_star_avg_count: 0,
         four_star_total_count: 0,
         stats: {
-          avg_count: 0,
-          median_count: 0,
-          std_count: 0,
-          min_count: 0,
-          max_count: 0
+          five_star_avg_count: 0,
+          five_star_median_count: 0,
+          five_star_std_count: 0,
+          five_star_min_count: 0,
+          five_star_max_count: 0,
+          five_star_up_avg_count: 0,
+          five_star_up_median_count: 0,
+          five_star_up_std_count: 0,
+          five_star_up_min_count: 0,
+          five_star_up_max_count: 0
         },
         five_star_costs: []
-      }
-    }
-  },
-  mounted() {
-    // 从路由参数获取结果
-    const resultStr = this.$route.query.result
-    
-    if (resultStr) {
-      try {
-        const parsedResult = JSON.parse(resultStr)
-        // 限制 five_star_costs 数组长度，优化性能
-        const limitedFiveStarCosts = (parsedResult.five_star_costs || []).slice(0, 50)
-        
-        // 合并解析结果和默认值，确保所有必要的属性都存在
-        this.result = {
-          ...this.result,
-          ...parsedResult,
-          stats: {
-            ...this.result.stats,
-            ...(parsedResult.stats || {})
-          },
-          five_star_costs: limitedFiveStarCosts
-        }
-      } catch (error) {
-        console.error('解析结果失败:', error)
-      }
+      },
+      showBackToTop: false
     }
   },
   methods: {
@@ -190,7 +181,49 @@ export default {
     goToMainMenu() {
       // 直接跳转，不需要清理数据
       this.$router.push('/')
+    },
+    scrollToTop() {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      })
+    },
+    handleScroll() {
+      // 简化判断，只要滚动了就显示按钮
+      this.showBackToTop = window.scrollY > 10
     }
+  },
+  mounted() {
+    // 从路由参数获取结果
+    const resultStr = this.$route.query.result
+    
+    if (resultStr) {
+      try {
+        const parsedResult = JSON.parse(resultStr)
+        // 限制 five_star_costs 数组长度，优化性能
+        const limitedFiveStarCosts = (parsedResult.five_star_costs || []).slice(0, 50)
+        
+        // 合并解析结果和默认值，确保所有必要的属性都存在
+        this.result = {
+          ...this.result,
+          ...parsedResult,
+          stats: {
+            ...this.result.stats,
+            ...(parsedResult.stats || {})
+          },
+          five_star_costs: limitedFiveStarCosts
+        }
+      } catch (error) {
+        console.error('解析结果失败:', error)
+      }
+    }
+    
+    // 添加滚动监听
+    window.addEventListener('scroll', this.handleScroll)
+  },
+  beforeDestroy() {
+    // 移除滚动监听
+    window.removeEventListener('scroll', this.handleScroll)
   }
 }
 </script>
@@ -256,10 +289,10 @@ h1 {
   max-width: 200px;
 }
 
-/* 数学统计的5个数据项 */
+/* 数学统计的数据项 */
 .stats-grid.math-stats {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 10px;
 }
 
@@ -440,5 +473,39 @@ h1 {
   .action-button {
     width: 200px;
   }
+}
+
+/* 返回顶部按钮样式 */
+.back-to-top {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(148, 163, 184, 0.4);
+  transition: all 0.3s ease;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.back-to-top:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(148, 163, 184, 0.5);
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  color: #475569;
+}
+
+.back-to-top:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(148, 163, 184, 0.3);
 }
 </style>

@@ -95,7 +95,7 @@ class WishServer:
         up_count = data.get('up_count', 0)
         guarantee_up = data.get('guarantee_up', False)
         total_pulls = data.get('total_pulls', 0)
-        migu_counter = data.get('migu_counter', 0)
+        capture_minguang_counter = data.get('capture_minguang_counter', 0)
         last_five_star_cost = data.get('last_five_star_cost', 0)
         
         # 创建新的模拟器实例，使用请求中的祈愿进度参数
@@ -113,7 +113,7 @@ class WishServer:
         sim.guarantee_up = guarantee_up
         sim.guarantee_four_star_up = data.get('guarantee_four_star_up', False)
         sim.total_pulls = total_pulls
-        sim.migu_counter = migu_counter
+        sim.capture_minguang_counter = capture_minguang_counter
         sim.last_five_star_cost = last_five_star_cost
         
         # 获取5星UP角色名称（从模块中获取）
@@ -184,8 +184,9 @@ class WishServer:
             # 武器自动模拟
             count = data.get('count', 1000)
             start_pity = data.get('start_pity', 0)
+            strategy = data.get('strategy', None)
             sim = WeaponWishSimulator(start_pity)
-            result = sim.simulate_pulls(count)
+            result = sim.simulate_pulls(count, strategy)
             result['total_pulls'] = count
             return jsonify(result)
         else:
@@ -196,51 +197,11 @@ class WishServer:
         try:
             data = request.json or {}
 
-            # 资源（纠缠之缘=抽数）
-            resources = int(data.get('resources', data.get('intertwined_fate', data.get('pulls', 0))))
-            if resources < 0:
-                return jsonify({'error': 'resources must be >= 0'}), 400
-
-            # 新的四目标参数
-            char1 = int(data.get('five_star_up_character_1', 0))
-            char2 = int(data.get('five_star_up_character_2', 0))
-            weap1 = int(data.get('five_star_up_weapon_1', 0))
-            weap2 = int(data.get('five_star_up_weapon_2', 0))
-
-            # 验证目标数量
-            if any(x < 0 for x in [char1, char2, weap1, weap2]):
-                return jsonify({'error': 'targets must be >= 0'}), 400
-            if all(x == 0 for x in [char1, char2, weap1, weap2]):
-                return jsonify({'error': 'at least one target must be > 0'}), 400
-
-            # 创建目标数据类
-            targets = GoalProbability.Targets(
-                five_star_up_character_1=char1,
-                five_star_up_character_2=char2,
-                five_star_up_weapon_1=weap1,
-                five_star_up_weapon_2=weap2
-            )
-
-            # 模拟参数
-            trials = int(data.get('trials', 5000))
-            if trials < 100:
-                return jsonify({'error': 'trials must be >= 100'}), 400
-
             # 执行蒙特卡洛模拟
             calculator = GoalProbability.GoalProbabilityCalculator()
             
-            result = calculator.estimate_goal_probability(
-                pulls=resources,
-                targets=targets,
-                trials=trials,
-                strategy="character_then_weapon",
-                seed=None,
-                start=GoalProbability.StartState(),
-                draw_character_module=CharacterWish,
-                draw_character2_module=CharacterWish2,
-                draw_weapon_module=WeaponWish
-            )
-            
+            result = calculator.process_api_request(data)
+
             return jsonify(result)
         except Exception as e:
             app.logger.error(f"Error calculating goal probability: {e}")
@@ -251,78 +212,26 @@ class WishServer:
         try:
             data = request.json or {}
 
-            # 新的四目标参数
-            char1 = int(data.get('five_star_up_character_1', 0))
-            char2 = int(data.get('five_star_up_character_2', 0))
-            weap1 = int(data.get('five_star_up_weapon_1', 0))
-            weap2 = int(data.get('five_star_up_weapon_2', 0))
-
-            # 验证目标数量
-            if any(x < 0 for x in [char1, char2, weap1, weap2]):
-                return jsonify({'error': 'targets must be >= 0'}), 400
-            if all(x == 0 for x in [char1, char2, weap1, weap2]):
-                return jsonify({'error': 'at least one target must be > 0'}), 400
-
-            # 创建目标数据类
-            targets = GoalProbability.Targets(
-                five_star_up_character_1=char1,
-                five_star_up_character_2=char2,
-                five_star_up_weapon_1=weap1,
-                five_star_up_weapon_2=weap2
-            )
-
             # 执行蒙特卡洛模拟
             calculator = GoalProbability.GoalProbabilityCalculator()
             
-            result = calculator.calculate_required_pulls_for_95_percent_probability(
-                targets=targets,
-                strategy="character_then_weapon",
-                draw_character_module=CharacterWish,
-                draw_character2_module=CharacterWish2,
-                draw_weapon_module=WeaponWish
-            )
-            
+            result = calculator.process_required_pulls_request(data, 0.95)
+
             return jsonify(result)
         except Exception as e:
             app.logger.error(f"Error calculating required pulls for 95%: {e}")
             return jsonify({'error': str(e)}), 500
 
     def handle_required_pulls_for_50_percent(self):
-        """计算达成目标所需的抽数（50%置信度，中位数）"""
+        """计算达成目标所需的抽数（50%置信度）"""
         try:
             data = request.json or {}
-
-            # 新的四目标参数
-            char1 = int(data.get('five_star_up_character_1', 0))
-            char2 = int(data.get('five_star_up_character_2', 0))
-            weap1 = int(data.get('five_star_up_weapon_1', 0))
-            weap2 = int(data.get('five_star_up_weapon_2', 0))
-
-            # 验证目标数量
-            if any(x < 0 for x in [char1, char2, weap1, weap2]):
-                return jsonify({'error': 'targets must be >= 0'}), 400
-            if all(x == 0 for x in [char1, char2, weap1, weap2]):
-                return jsonify({'error': 'at least one target must be > 0'}), 400
-
-            # 创建目标数据类
-            targets = GoalProbability.Targets(
-                five_star_up_character_1=char1,
-                five_star_up_character_2=char2,
-                five_star_up_weapon_1=weap1,
-                five_star_up_weapon_2=weap2
-            )
 
             # 执行蒙特卡洛模拟
             calculator = GoalProbability.GoalProbabilityCalculator()
             
-            result = calculator.calculate_required_pulls_for_50_percent_probability(
-                targets=targets,
-                strategy="character_then_weapon",
-                draw_character_module=CharacterWish,
-                draw_character2_module=CharacterWish2,
-                draw_weapon_module=WeaponWish
-            )
-            
+            result = calculator.process_required_pulls_request(data, 0.5)
+
             return jsonify(result)
         except Exception as e:
             app.logger.error(f"Error calculating required pulls for 50%: {e}")
@@ -371,8 +280,7 @@ class WishServer:
             'guarantee_up': result['guarantee_up'],
             'guarantee_four_star_up': result['guarantee_four_star_up'],
             'capture_minguang': result['capture_minguang'][0],
-            'migu_counter': result['migu_counter'],
-            'guarantee_capture_minguang': result['guarantee_capture_minguang'],
+            'capture_minguang_counter': result['capture_minguang_counter'],
             'capture_minguang_count': result['capture_minguang_count'],
             'last_five_star_cost': result.get('last_five_star_cost', 0)
         })
@@ -425,8 +333,7 @@ class WishServer:
             'total_pulls': result['total_pulls'],
             'guarantee_up': result['guarantee_up'],
             'guarantee_four_star_up': result['guarantee_four_star_up'],
-            'migu_counter': result['migu_counter'],
-            'guarantee_capture_minguang': result['guarantee_capture_minguang'],
+            'capture_minguang_counter': result['capture_minguang_counter'],
             'capture_minguang_count': result['capture_minguang_count'],
             'last_five_star_cost': result.get('last_five_star_cost', 0)
         })

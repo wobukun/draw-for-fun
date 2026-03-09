@@ -32,7 +32,6 @@
               min="0"
               max="9999999"
               v-model.number="form.primogems"
-              @input="calculateTotalResources"
             />
             <p class="helper-text">160 原石 = 1 纠缠之缘</p>
           </div>
@@ -45,7 +44,6 @@
               min="0"
               max="9999999"
               v-model.number="form.crystals"
-              @input="calculateTotalResources"
             />
             <p class="helper-text">1 创世结晶 = 1 原石</p>
           </div>
@@ -364,14 +362,6 @@ export default {
       isMounted: true
     }
   },
-  computed: {
-    totalResources() {
-      // 计算总抽数：纠缠之缘 + (原石 + 创世结晶兑换的原石) / 160
-      const totalPrimogems = (this.form.primogems || 0) + (this.form.crystals || 0)
-      const primogemsToFate = Math.floor(totalPrimogems / 160)
-      return (this.form.resources || 0) + primogemsToFate
-    }
-  },
   methods: {
     goBack() {
       this.$router.push('/')
@@ -393,11 +383,6 @@ export default {
       // 验证创世结晶数范围
       if (this.form.crystals === null || this.form.crystals < 0 || this.form.crystals > 9999999) {
         return '创世结晶数量必须在 0 - 9999999 之间。'
-      }
-      
-      // 验证总抽数
-      if (this.totalResources < 0) {
-        return '总抽数必须 >= 0。'
       }
       
       // 5星UP角色-1：仅在勾选时校验，命之座范围 0-6
@@ -452,10 +437,6 @@ export default {
       
       return ''
     },
-    calculateTotalResources() {
-      // 此方法用于触发计算属性更新
-      // 实际计算逻辑在 computed.totalResources 中
-    },
     onCharacter1Toggle() {
       if (this.form.includeCharacter1 && this.form.targetCharacterConstellation1 === null) {
         this.form.targetCharacterConstellation1 = 0
@@ -494,29 +475,22 @@ export default {
       this.isLoading = true
       this.result = null
 
-      // 将命之座/精炼等级转换为实际数量
-      // 角色：0命=1个，6命=7个（命之座+1）
-      // 武器：1精=1把，5精=5把（精炼等级=数量）
-      // 使用 || 0 确保数值有效
-      const char1Const = this.form.targetCharacterConstellation1 || 0
-      const char2Const = this.form.targetCharacterConstellation2 || 0
-      const weap1Ref = this.form.targetWeaponRefinement1 || 1
-      const weap2Ref = this.form.targetWeaponRefinement2 || 1
-      
-      const char1Copies = this.form.includeCharacter1 ? (char1Const + 1) : 0
-      const char2Copies = this.form.includeCharacter2 ? (char2Const + 1) : 0
-      const weap1Copies = this.form.includeWeapon1 ? weap1Ref : 0
-      const weap2Copies = this.form.includeWeapon2 ? weap2Ref : 0
-
       const payload = {
-        resources: this.totalResources,
-        strategy: "character_first",
+        resources: this.form.resources || 0,
+        primogems: this.form.primogems || 0,
+        crystals: this.form.crystals || 0,
+        strategy: "character_then_weapon",
         trials: this.form.trials,
-        // 转换为实际数量
-        five_star_up_character_1: char1Copies,
-        five_star_up_character_2: char2Copies,
-        five_star_up_weapon_1: weap1Copies,
-        five_star_up_weapon_2: weap2Copies
+        // 命之座层数和精炼等级
+        target_character_constellation_1: this.form.targetCharacterConstellation1 || 0,
+        target_character_constellation_2: this.form.targetCharacterConstellation2 || 0,
+        target_weapon_refinement_1: this.form.targetWeaponRefinement1 || 1,
+        target_weapon_refinement_2: this.form.targetWeaponRefinement2 || 1,
+        // 是否包含该目标
+        include_character_1: this.form.includeCharacter1,
+        include_character_2: this.form.includeCharacter2,
+        include_weapon_1: this.form.includeWeapon1,
+        include_weapon_2: this.form.includeWeapon2
       }
 
       // 准备API调用
@@ -530,10 +504,17 @@ export default {
       // 根据用户选择决定是否添加50%概率所需抽数（期望）的计算
       if (this.form.calculateExpectedPulls) {
         const expectedPullsPayload = {
-          five_star_up_character_1: char1Copies,
-          five_star_up_character_2: char2Copies,
-          five_star_up_weapon_1: weap1Copies,
-          five_star_up_weapon_2: weap2Copies,
+          resources: this.form.resources || 0,
+          primogems: this.form.primogems || 0,
+          crystals: this.form.crystals || 0,
+          target_character_constellation_1: this.form.targetCharacterConstellation1 || 0,
+          target_character_constellation_2: this.form.targetCharacterConstellation2 || 0,
+          target_weapon_refinement_1: this.form.targetWeaponRefinement1 || 1,
+          target_weapon_refinement_2: this.form.targetWeaponRefinement2 || 1,
+          include_character_1: this.form.includeCharacter1,
+          include_character_2: this.form.includeCharacter2,
+          include_weapon_1: this.form.includeWeapon1,
+          include_weapon_2: this.form.includeWeapon2,
           strategy: "character_then_weapon"
         }
         apiCalls.push(axios.post('/api/required_pulls_for_50_percent', expectedPullsPayload, {
@@ -544,10 +525,17 @@ export default {
       // 根据用户选择决定是否添加95%概率所需抽数的计算
       if (this.form.calculateRequiredPulls) {
         const requiredPullsPayload = {
-          five_star_up_character_1: char1Copies,
-          five_star_up_character_2: char2Copies,
-          five_star_up_weapon_1: weap1Copies,
-          five_star_up_weapon_2: weap2Copies,
+          resources: this.form.resources || 0,
+          primogems: this.form.primogems || 0,
+          crystals: this.form.crystals || 0,
+          target_character_constellation_1: this.form.targetCharacterConstellation1 || 0,
+          target_character_constellation_2: this.form.targetCharacterConstellation2 || 0,
+          target_weapon_refinement_1: this.form.targetWeaponRefinement1 || 1,
+          target_weapon_refinement_2: this.form.targetWeaponRefinement2 || 1,
+          include_character_1: this.form.includeCharacter1,
+          include_character_2: this.form.includeCharacter2,
+          include_weapon_1: this.form.includeWeapon1,
+          include_weapon_2: this.form.includeWeapon2,
           strategy: "character_then_weapon"
         }
         apiCalls.push(axios.post('/api/required_pulls_for_95_percent', requiredPullsPayload, {
@@ -572,21 +560,6 @@ export default {
           // 处理50%概率所需抽数（期望）
           if (this.form.calculateExpectedPulls && responses[responseIndex]) {
             this.requiredPullsFor50Percent = responses[responseIndex].data
-            
-            // 计算期望仍需抽数和期望仍需金额
-            if (this.requiredPullsFor50Percent && this.result) {
-              // 计算期望仍需抽数 = 期望达成目标所需抽数 - 已有抽数，且不能为负数
-              this.requiredPullsFor50Percent.remaining_pulls = Math.max(
-                0, 
-                this.requiredPullsFor50Percent.required_pulls - this.result.resources
-              )
-              
-              // 计算期望仍需金额范围 = 期望仍需抽数 * 12.84 到 期望仍需抽数 * 14.55
-              this.requiredPullsFor50Percent.remaining_amount_min = 
-                this.requiredPullsFor50Percent.remaining_pulls * 12.84
-              this.requiredPullsFor50Percent.remaining_amount_max = 
-                this.requiredPullsFor50Percent.remaining_pulls * 14.55
-            }
             responseIndex++
           } else {
             // 如果用户不选择计算，则清空之前的结果
@@ -596,21 +569,6 @@ export default {
           // 处理95%概率所需抽数
           if (this.form.calculateRequiredPulls && responses[responseIndex]) {
             this.requiredPullsFor95Percent = responses[responseIndex].data
-            
-            // 计算保底仍需抽数和保底仍需金额
-            if (this.requiredPullsFor95Percent && this.result) {
-              // 计算保底仍需抽数 = 保底达成目标所需抽数 - 已有抽数，且不能为负数
-              this.requiredPullsFor95Percent.remaining_pulls = Math.max(
-                0, 
-                this.requiredPullsFor95Percent.required_pulls - this.result.resources
-              )
-              
-              // 计算保底仍需金额范围 = 保底仍需抽数 * 12.84 到 保底仍需抽数 * 14.55
-              this.requiredPullsFor95Percent.remaining_amount_min = 
-                this.requiredPullsFor95Percent.remaining_pulls * 12.84
-              this.requiredPullsFor95Percent.remaining_amount_max = 
-                this.requiredPullsFor95Percent.remaining_pulls * 14.55
-            }
           } else {
             // 如果用户不选择计算，则清空之前的结果
             this.requiredPullsFor95Percent = null
@@ -672,7 +630,7 @@ export default {
     },
     handleScroll() {
       // 简化判断，只要滚动了就显示按钮
-      this.showBackToTop = window.scrollY > 100
+      this.showBackToTop = window.scrollY > 10
     }
   },
   mounted() {

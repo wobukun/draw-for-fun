@@ -167,7 +167,7 @@ export default {
         four_star_up_3_count: 0,
         guarantee_up: false,
         guarantee_four_star_up: false,
-        migu_counter: 0,
+        capture_minguang_counter: 0,
         last_five_star_cost: 0
       },
       isLoading: false,
@@ -230,7 +230,7 @@ export default {
             guarantee_up: this.result.guarantee_up || false,
             guarantee_four_star_up: this.result.guarantee_four_star_up || false,
             total_pulls: this.result.total_pulls || 0,
-            migu_counter: this.result.migu_counter || 0,
+            capture_minguang_counter: this.result.capture_minguang_counter || 0,
             last_five_star_cost: this.result.last_five_star_cost || 0
           }),
           new Promise(resolve => setTimeout(resolve, delay))
@@ -282,7 +282,7 @@ export default {
             guarantee_up: this.result.guarantee_up || false,
             guarantee_four_star_up: this.result.guarantee_four_star_up || false,
             total_pulls: this.result.total_pulls || 0,
-            migu_counter: this.result.migu_counter || 0,
+            capture_minguang_counter: this.result.capture_minguang_counter || 0,
             last_five_star_cost: this.result.last_five_star_cost || 0
           }),
           new Promise(resolve => setTimeout(resolve, delay))
@@ -331,7 +331,7 @@ export default {
         four_star_up_3_count: 0,
         guarantee_up: false,
         guarantee_four_star_up: false,
-        migu_counter: 0,
+        capture_minguang_counter: 0,
         last_five_star_cost: 0
       }
       // 清空抽卡历史
@@ -356,7 +356,7 @@ export default {
       }
     },
     setMiguCounterTo3() {
-      this.result.migu_counter = 3
+      this.result.capture_minguang_counter = 3
     },
     showItemDetail(item) {
       this.selectedItem = item

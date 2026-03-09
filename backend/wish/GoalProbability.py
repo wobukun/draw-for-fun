@@ -26,6 +26,8 @@ import numpy as np
 
 Strategy = Literal["character_then_weapon", "weapon_then_character"]
 
+DEFAULT_TRIALS: int = 10000  # 默认模拟次数，用于概率估算
+
 
 @dataclass(frozen=True)
 class StartState:
@@ -70,21 +72,15 @@ class GoalProbabilityCalculator:
     使用蒙特卡洛模拟方法估算在指定资源下达成抽卡目标的概率。
     支持角色和武器两种抽卡类型，以及不同的抽取策略。
     """
-
-    # 类级别的默认模拟次数常量
-    DEFAULT_TRIALS: int = 10000  # 默认模拟次数，用于概率估算
     
-    def __init__(self, max_total_draws: int = 3_000_000, trials: int = None) -> None:
+    def __init__(self, trials: int = DEFAULT_TRIALS) -> None:
         """初始化概率计算器
 
         Args:
-            max_total_draws: 单次请求的最大总抽数限制，避免服务器阻塞
             trials: 模拟试验次数，默认为 DEFAULT_TRIALS
         """
-        # 单次请求的「抽数 * 试验次数」上限，避免阻塞
-        self.max_total_draws = int(max_total_draws)
-        # 实例级别的模拟次数，可通过参数覆盖默认值
-        self.trials = trials if trials is not None else self.DEFAULT_TRIALS
+        # 实例级别的模拟次数
+        self.trials = trials
 
     # ===== 静态/类工具方法 =====
 
@@ -227,10 +223,8 @@ class GoalProbabilityCalculator:
             target_sim.pity = source_sim.pity
             target_sim.guarantee_up = source_sim.guarantee_up
             # 同步捕获明光相关状态（如果存在）
-            if hasattr(source_sim, 'migu_counter') and hasattr(target_sim, 'migu_counter'):
-                target_sim.migu_counter = source_sim.migu_counter
-            if hasattr(source_sim, 'guarantee_capture_minguang') and hasattr(target_sim, 'guarantee_capture_minguang'):
-                target_sim.guarantee_capture_minguang = source_sim.guarantee_capture_minguang
+            if hasattr(source_sim, 'capture_minguang_counter') and hasattr(target_sim, 'capture_minguang_counter'):
+                target_sim.capture_minguang_counter = source_sim.capture_minguang_counter
 
         # 辅助函数：根据当前剩余需求决定定轨武器
         def update_fate_weapon(current_got_weap1: int, current_got_weap2: int) -> None:
@@ -240,13 +234,24 @@ class GoalProbabilityCalculator:
             
             if remaining_weap1 > 0 and remaining_weap2 > 0:
                 # 两个都还需要，定轨剩余需求更多的那把
-                weap_sim.set_fate_weapon('5星UP武器-1' if remaining_weap1 >= remaining_weap2 else '5星UP武器-2')
+                new_fate_weapon = '5星UP武器-1' if remaining_weap1 >= remaining_weap2 else '5星UP武器-2'
+                if weap_sim.selected_fate_weapon is None:
+                    weap_sim.set_fate_weapon(new_fate_weapon)
+                elif weap_sim.selected_fate_weapon != new_fate_weapon:
+                    weap_sim.change_fate_weapon(new_fate_weapon)
             elif remaining_weap1 > 0:
-                weap_sim.set_fate_weapon('5星UP武器-1')
+                if weap_sim.selected_fate_weapon is None:
+                    weap_sim.set_fate_weapon('5星UP武器-1')
+                elif weap_sim.selected_fate_weapon != '5星UP武器-1':
+                    weap_sim.change_fate_weapon('5星UP武器-1')
             elif remaining_weap2 > 0:
-                weap_sim.set_fate_weapon('5星UP武器-2')
+                if weap_sim.selected_fate_weapon is None:
+                    weap_sim.set_fate_weapon('5星UP武器-2')
+                elif weap_sim.selected_fate_weapon != '5星UP武器-2':
+                    weap_sim.change_fate_weapon('5星UP武器-2')
             else:
-                weap_sim.set_fate_weapon(None)
+                if weap_sim.selected_fate_weapon is not None:
+                    weap_sim.cancel_fate_weapon()
         
         # 初始化定轨武器
         update_fate_weapon(0, 0)
@@ -304,10 +309,9 @@ class GoalProbabilityCalculator:
                     update_fate_weapon(got_weap1, got_weap2)
             elif is_5star and not is_up:
                 # 抽到常驻5星武器，且两把武器都还需要
-                # 取消定轨并重新定轨离目标更远的那把
                 if got_weap1 < need_weap1 and got_weap2 < need_weap2:
-                    # 取消定轨并重新定轨离目标更远的那把
-                    # update_fate_weapon 会调用 set_fate_weapon，自动重置命定值
+                    # 先取消定轨，再重新定轨离目标更远的那把
+                    weap_sim.cancel_fate_weapon()
                     update_fate_weapon(got_weap1, got_weap2)
             # 提前终止检查
             if (
@@ -794,17 +798,35 @@ class GoalProbabilityCalculator:
             dict: 包含计算结果的字典
         """
         # 解析请求参数
-        pulls = request_data.get('resources', 0)
-        trials = request_data.get('trials', self.DEFAULT_TRIALS)
+        resources = request_data.get('resources', 0)  # 纠缠之缘数量
+        primogems = request_data.get('primogems', 0)  # 原石数量
+        crystals = request_data.get('crystals', 0)  # 创世结晶数量
+        
+        # 计算总抽数：纠缠之缘 + (原石 + 创世结晶) / 160
+        pulls = resources + (primogems + crystals) // 160
+        
+        trials = request_data.get('trials', self.trials)
         strategy = request_data.get('strategy', 'character_then_weapon')
         seed = request_data.get('seed', None)
 
+        # 获取命之座层数和精炼等级
+        char1_constellation = request_data.get('target_character_constellation_1', 0)
+        char2_constellation = request_data.get('target_character_constellation_2', 0)
+        weap1_refinement = request_data.get('target_weapon_refinement_1', 0)
+        weap2_refinement = request_data.get('target_weapon_refinement_2', 0)
+        
+        # 是否包含该目标
+        include_char1 = request_data.get('include_character_1', True)
+        include_char2 = request_data.get('include_character_2', False)
+        include_weap1 = request_data.get('include_weapon_1', True)
+        include_weap2 = request_data.get('include_weapon_2', False)
+
         # 构建目标对象
         targets = Targets(
-            five_star_up_character_1=request_data.get('target_five_star_up_character_1', 0),
-            five_star_up_character_2=request_data.get('target_five_star_up_character_2', 0),
-            five_star_up_weapon_1=request_data.get('target_five_star_up_weapon_1', 0),
-            five_star_up_weapon_2=request_data.get('target_five_star_up_weapon_2', 0)
+            five_star_up_character_1=self.constellation_to_copies(char1_constellation) if include_char1 else 0,
+            five_star_up_character_2=self.constellation_to_copies(char2_constellation) if include_char2 else 0,
+            five_star_up_weapon_1=self.refinement_to_copies(weap1_refinement) if include_weap1 else 0,
+            five_star_up_weapon_2=self.refinement_to_copies(weap2_refinement) if include_weap2 else 0
         )
 
         # 导入模块
@@ -837,12 +859,24 @@ class GoalProbabilityCalculator:
         Returns:
             dict: 包含所需抽数的字典
         """
+        # 获取命之座层数和精炼等级
+        char1_constellation = request_data.get('target_character_constellation_1', 0)
+        char2_constellation = request_data.get('target_character_constellation_2', 0)
+        weap1_refinement = request_data.get('target_weapon_refinement_1', 0)
+        weap2_refinement = request_data.get('target_weapon_refinement_2', 0)
+        
+        # 是否包含该目标
+        include_char1 = request_data.get('include_character_1', True)
+        include_char2 = request_data.get('include_character_2', False)
+        include_weap1 = request_data.get('include_weapon_1', True)
+        include_weap2 = request_data.get('include_weapon_2', False)
+
         # 构建目标对象
         targets = Targets(
-            five_star_up_character_1=request_data.get('target_five_star_up_character_1', 0),
-            five_star_up_character_2=request_data.get('target_five_star_up_character_2', 0),
-            five_star_up_weapon_1=request_data.get('target_five_star_up_weapon_1', 0),
-            five_star_up_weapon_2=request_data.get('target_five_star_up_weapon_2', 0)
+            five_star_up_character_1=self.constellation_to_copies(char1_constellation) if include_char1 else 0,
+            five_star_up_character_2=self.constellation_to_copies(char2_constellation) if include_char2 else 0,
+            five_star_up_weapon_1=self.refinement_to_copies(weap1_refinement) if include_weap1 else 0,
+            five_star_up_weapon_2=self.refinement_to_copies(weap2_refinement) if include_weap2 else 0
         )
 
         # 导入模块
@@ -873,5 +907,20 @@ class GoalProbabilityCalculator:
             )
         else:
             raise ValueError(f"Invalid probability: {probability}. Must be 0.5 or 0.95")
+
+        # 计算剩余抽数和金额
+        resources = request_data.get('resources', 0)
+        primogems = request_data.get('primogems', 0)
+        crystals = request_data.get('crystals', 0)
+        total_pulls = resources + (primogems + crystals) // 160
+        remaining_pulls = max(0, result['required_pulls'] - total_pulls)
+        
+        # 计算金额范围（12.84-14.55元/抽）
+        remaining_amount_min = remaining_pulls * 12.84
+        remaining_amount_max = remaining_pulls * 14.55
+        
+        result['remaining_pulls'] = remaining_pulls
+        result['remaining_amount_min'] = remaining_amount_min
+        result['remaining_amount_max'] = remaining_amount_max
 
         return result

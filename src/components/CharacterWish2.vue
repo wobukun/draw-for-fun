@@ -326,24 +326,25 @@ h1 {
 
 .modal-buttons {
   display: flex;
-  gap: 30px;
+  gap: 50px;
   margin-top: 20px;
   justify-content: center;
 }
 
 .modal-button {
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  padding: 14px 48px;
+  background: linear-gradient(135deg, #87CEEB 0%, #5DADE2 100%);
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+  box-shadow: 0 4px 12px rgba(135, 206, 235, 0.3);
   position: relative;
   overflow: hidden;
+  min-width: 160px;
 }
 
 .modal-button::before {

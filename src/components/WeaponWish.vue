@@ -26,10 +26,27 @@
       <div class="modal-overlay" @click="hideAutoSimulation"></div>
       <div class="modal-content">
         <h2>自动模拟设置</h2>
-        <p class="auto-sim-note">自动模拟默认不定轨武器</p>
+        <p class="auto-sim-note">选择武器定轨策略</p>
         <div class="form-group">
           <label for="sim-count">模拟抽取次数：</label>
-          <input type="number" id="sim-count" v-model.number="simCount" min="1" max="20000000" value="1000">
+          <input type="number" id="sim-count" v-model.number="simCount" min="0" max="10000000" value="1000">
+        </div>
+        <div class="form-group">
+          <label>定轨策略：</label>
+          <div class="strategy-options">
+            <label class="strategy-option">
+              <input type="radio" v-model="strategy" :value="null">
+              <span>不定轨</span>
+            </label>
+            <label class="strategy-option">
+              <input type="radio" v-model="strategy" value="5星UP武器-1">
+              <span>一直定轨5星UP武器-1</span>
+            </label>
+            <label class="strategy-option">
+              <input type="radio" v-model="strategy" value="5星UP武器-2">
+              <span>一直定轨5星UP武器-2</span>
+            </label>
+          </div>
         </div>
         <div class="modal-buttons">
           <button @click="performAutoSimulation" class="modal-button">开始模拟</button>
@@ -61,6 +78,7 @@ export default {
       pullResults: [],
       showAutoSim: false,
       simCount: 1000,
+      strategy: null, // 策略：null（不定轨）、'5星UP武器-1'（一直定UP武器1）、'5星UP武器-2'（一直定UP武器2）
       isLoading: false,
       loadingProgress: 0,
       loadingInterval: null
@@ -79,17 +97,11 @@ export default {
     },
     performAutoSimulation() {
       // 验证模拟次数是否在有效范围内
-      if (this.simCount < 1 || this.simCount > 20000000) {
-        alert('模拟次数必须在1-20000000之间，请重新输入');
+      if (this.simCount < 0 || this.simCount > 10000000) {
+        alert('模拟次数必须在0-10000000之间，请重新输入');
         return;
       }
       
-      // 当模拟次数>=10000000时，提示用户抽取次数较大可能影响性能
-      if (this.simCount >= 10000000) {
-        if (!confirm('抽取次数较大，可能影响性能，是否继续？')) {
-          return;
-        }
-      }
       
       this.isLoading = true
       this.loadingProgress = 0
@@ -107,7 +119,8 @@ export default {
         mode: 'weapon',
         action: 'auto',
         count: this.simCount,
-        start_pity: 0
+        start_pity: 0,
+        strategy: this.strategy
       })
       .then(response => {
         clearInterval(this.loadingInterval)
@@ -570,26 +583,77 @@ h1 {
   background: white;
 }
 
+.strategy-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.strategy-option {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.strategy-option:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.strategy-option:has(input[type="radio"]:checked) {
+  background: #fff3cd;
+  border-color: #ffeaa7;
+  box-shadow: 0 0 0 2px rgba(255, 243, 205, 0.5);
+}
+
+.strategy-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.strategy-option span {
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.3s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.strategy-option:has(input[type="radio"]:checked) span {
+  color: #664d03;
+  font-weight: 600;
+}
+
 .modal-buttons {
   display: flex;
-  gap: 30px;
+  gap: 50px;
   margin-top: 20px;
   justify-content: center;
 }
 
 .modal-button {
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  padding: 14px 48px;
+  background: linear-gradient(135deg, #87CEEB 0%, #5DADE2 100%);
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+  box-shadow: 0 4px 12px rgba(135, 206, 235, 0.3);
   position: relative;
   overflow: hidden;
+  min-width: 160px;
 }
 
 .modal-button::before {

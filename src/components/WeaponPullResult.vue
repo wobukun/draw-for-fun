@@ -139,7 +139,7 @@
       <div class="fate-modal-content" @click.stop>
         <div class="fate-modal-close" @click="closeFateModal">×</div>
         <h2 class="fate-modal-title">选择定轨武器</h2>
-        <div class="fate-point-display" :class="{ 'max': (result.fate_point || 0) >= 1 }">
+        <div class="fate-point-display" :class="{ 'max': (result.fate_point || 0) === 1 }">
           命定值：<span class="current-value">{{ result.fate_point || 0 }}</span>/<span class="max-value">1</span>
         </div>
         <div class="fate-options">
@@ -1710,11 +1710,11 @@ h1 {
 }
 
 .fate-point-display .current-value {
-  color: #4a5568;
+  color: #60a5fa;
 }
 
 .fate-point-display .max-value {
-  color: #60a5fa;
+  color: #000000;
 }
 
 .fate-point-display.max {
@@ -1723,10 +1723,7 @@ h1 {
   animation: glow-pulse 1.5s ease-in-out infinite;
 }
 
-.fate-point-display.max .current-value,
-.fate-point-display.max .max-value {
-  color: #60a5fa;
-}
+
 
 @keyframes glow-pulse {
   0%, 100% {

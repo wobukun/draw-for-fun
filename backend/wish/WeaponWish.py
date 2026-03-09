@@ -86,7 +86,9 @@ class WeaponWishSimulator:
     方法:
     - `current_five_star_rate(pity=None)`: 返回给定（或当前）pity 的5星命中概率
     - `current_four_star_rate(four_star_pity=None)`: 返回给定（或当前）four_star_pity 的4星命中概率
-    - `set_fate_weapon(weapon_name)`: 设置定轨武器
+    - `set_fate_weapon(weapon_name)`: 设置定轨武器（从不定轨变为定某一把）
+    - `change_fate_weapon(weapon_name)`: 更换定轨武器（从定一把换到定另一把）
+    - `cancel_fate_weapon()`: 取消定轨武器
     - `draw_once()`: 进行一次抽卡，返回抽卡结果和状态更新
     - `draw_n(n)`: 连续抽 n 次，返回每次的抽卡结果和状态更新
     - `pull_one()`: 便捷接口，进行一次单抽并返回字典结果
@@ -128,15 +130,30 @@ class WeaponWishSimulator:
         self.five_star_up_weapons = five_star_up_weapons  # 5星UP武器列表
         self.four_star_up_weapons = four_star_up_weapons  # 4星UP武器列表
 
-    def set_fate_weapon(self, weapon_name: str | None) -> None:
-        """设置定轨武器。
+    def set_fate_weapon(self, weapon_name: str) -> None:
+        """设置定轨武器（从不定轨变为定某一把）。
         
         参数:
-        - `weapon_name`: 定轨武器名称，必须在 five_star_up_weapons 列表中，或者为 None 表示取消定轨。
+        - `weapon_name`: 定轨武器名称，必须在 five_star_up_weapons 列表中。
         """
-        if weapon_name is None or weapon_name in self.five_star_up_weapons:
+        if weapon_name in self.five_star_up_weapons:
+            self.selected_fate_weapon = weapon_name
+            # 从不定轨变为定轨时，命定值本来就是 0，不需要重置
+
+    def change_fate_weapon(self, weapon_name: str) -> None:
+        """更换定轨武器（从定一把换到定另一把）。
+        
+        参数:
+        - `weapon_name`: 新的定轨武器名称，必须在 five_star_up_weapons 列表中。
+        """
+        if weapon_name in self.five_star_up_weapons:
             self.selected_fate_weapon = weapon_name
             self.fate_point = 0  # 重置命定值
+
+    def cancel_fate_weapon(self) -> None:
+        """取消定轨武器。"""
+        self.selected_fate_weapon = None
+        self.fate_point = 0  # 重置命定值
 
     def current_five_star_rate(self, pity: int | None = None) -> float:
         """返回给定或当前 `pity` 下的 5★ 武器命中概率。
@@ -180,7 +197,6 @@ class WeaponWishSimulator:
         """
         # 计算5星概率
         five_star_prob = self.current_five_star_rate(self.pity)
-        five_star_prob = min(1.0, five_star_prob)
         
         # 先判断是否命中5星
         is_5star = self.rng.random() < five_star_prob
@@ -423,14 +439,17 @@ class WeaponWishSimulator:
                  fate_point_max=fate_point_max, seed=seed)
         return sim.pull_ten()
 
-    def simulate_pulls(self, total_pulls: int) -> dict:
-        """
-        模拟实际抽卡 `total_pulls` 次，返回抽卡结果统计。
-
-        返回字典：包含抽卡结果的统计信息，包括：
-        - up_count: UP武器数量
-        - avg_count: 常驻武器数量
-        - five_star_up_counts: 各5星UP武器的数量（字典）
+    def simulate_pulls(self, total_pulls: int, strategy: str = None) -> dict:
+        """模拟指定次数的武器池抽卡
+        
+        参数:
+        - `total_pulls`: 要模拟的抽卡次数
+        - `strategy`: 定轨策略，可选值：None（不定轨）、'5星UP武器-1'（一直定UP武器1）、'5星UP武器-2'（一直定UP武器2）
+        
+        返回:
+        - 包含抽卡结果的字典，包括:
+        - five_star_up_counts: 各5星UP武器的获取数量
+        - avg_count: 常驻5星武器获取数量
         - four_star_up_count: 4星UP物品数量
         - four_star_avg_count: 4星常驻物品数量
         - total_hits: 总命中数量（5星）
@@ -443,6 +462,7 @@ class WeaponWishSimulator:
         - four_star_positions: 4星命中位置列表
         - four_star_up_positions: 4星UP命中位置列表
         - stats: 数学统计信息，包括期望抽数、中位数抽数、标准差、最小抽数、最大抽数
+        - five_star_costs: 每次5星所花费的抽数
         """
         total_pulls = int(total_pulls)
         if total_pulls <= 0:
@@ -466,7 +486,8 @@ class WeaponWishSimulator:
                     'std_pulls': 0,
                     'min_pulls': 0,
                     'max_pulls': 0
-                }
+                },
+                'five_star_costs': []
             }
 
         # 起始状态（不修改 self）
@@ -476,14 +497,17 @@ class WeaponWishSimulator:
         current_guarantee_four_star_up = bool(self.guarantee_four_star_up)  # 下次是否必定4星UP
         current_fate_point = int(self.fate_point)  # 当前命定值
         current_fate_point_max = self.fate_point_max  # 命定值最大值
-        current_selected_fate_weapon = self.selected_fate_weapon  # 当前选择的定轨武器
+        # 根据策略设置初始定轨武器
+        if strategy in self.five_star_up_weapons:
+            current_selected_fate_weapon = strategy
+        else:
+            current_selected_fate_weapon = None  # 不定轨
         current_five_star_up_counts = {weapon: 0 for weapon in self.five_star_up_weapons}  # 各5星UP武器的获取数量
         current_avg_count = 0  # 常驻5星武器获取数量
         current_four_star_up_count = 0  # 4星UP物品获取数量
         current_four_star_avg_count = 0  # 常驻4星物品获取数量
         total_hits = 0  # 5星命中总次数
         total_four_star_hits = 0  # 4星命中总次数
-        current_last_five_star_cost = 0  # 上一个5星花费的抽数
         
         # 记录抽卡过程
         pity_history = []  # 每次抽卡后的5星保底计数
@@ -491,6 +515,7 @@ class WeaponWishSimulator:
         hit_positions = []  # 5星命中位置列表
         up_positions = []  # UP武器命中位置列表
         avg_positions = []  # 常驻武器命中位置列表
+        fate_weapon_positions = []  # 定轨武器命中位置列表
 
         four_star_positions = []  # 4星物品命中位置列表
         four_star_up_positions = []  # 4星UP物品命中位置列表
@@ -536,6 +561,10 @@ class WeaponWishSimulator:
                         weapon_name = current_selected_fate_weapon
                         current_five_star_up_counts[weapon_name] += 1
                         current_guarantee = False
+                        # 记录定轨武器命中位置
+                        fate_weapon_positions.append(pull_num)
+                        # 记录UP武器命中位置（定轨武器也是UP武器）
+                        up_positions.append(pull_num)
                     else:
                         # 命定值未满，检查是否触发大保底
                         if current_guarantee:
@@ -550,6 +579,8 @@ class WeaponWishSimulator:
                             if weapon_name == current_selected_fate_weapon:
                                 is_fate = True
                                 current_fate_point = 0  # 重置命定值
+                                # 记录定轨武器命中位置
+                                fate_weapon_positions.append(pull_num)
                             else:
                                 # 非定轨武器，增加命定值并确保不超过最大值
                                 current_fate_point = min(current_fate_point + 1, current_fate_point_max)
@@ -565,6 +596,8 @@ class WeaponWishSimulator:
                                 if weapon_name == current_selected_fate_weapon:
                                     is_fate = True
                                     current_fate_point = 0  # 重置命定值
+                                    # 记录定轨武器命中位置
+                                    fate_weapon_positions.append(pull_num)
                                 else:
                                     # 非定轨武器，增加命定值并确保不超过最大值
                                     current_fate_point = min(current_fate_point + 1, current_fate_point_max)
@@ -611,7 +644,6 @@ class WeaponWishSimulator:
                 })
                 
                 # 重置pity
-                current_last_five_star_cost = cost  # 记录上一个5星花费的抽数
                 current_pity = 0
                 current_four_star_pity += 1  # 命中5星时，4星pity仍加1
             else:
@@ -663,13 +695,35 @@ class WeaponWishSimulator:
 
         # 计算数学统计信息
         stats = {
-            'avg_count': 0,
-            'median_count': 0,
-            'std_count': 0,
-            'min_count': 0,
-            'max_count': 0
+            'five_star_up_avg_count': 0,
+            'five_star_up_median_count': 0,
+            'five_star_up_std_count': 0,
+            'five_star_up_min_count': 0,
+            'five_star_up_max_count': 0,
+            'five_star_avg_count': 0,
+            'five_star_median_count': 0,
+            'five_star_std_count': 0,
+            'five_star_min_count': 0,
+            'five_star_max_count': 0,
+            'fate_weapon_stats': None 
         }
 
+        # 计算5星武器的统计信息
+        if len(hit_positions) > 1:
+            import numpy as np
+            # 计算相邻5星之间的抽数间隔
+            five_star_intervals = []
+            for i in range(1, len(hit_positions)):
+                five_star_intervals.append(hit_positions[i] - hit_positions[i-1])
+            
+            if five_star_intervals:
+                stats['five_star_avg_count'] = float(np.mean(five_star_intervals))
+                stats['five_star_median_count'] = float(np.median(five_star_intervals))
+                stats['five_star_std_count'] = float(np.std(five_star_intervals))
+                stats['five_star_min_count'] = int(np.min(five_star_intervals))
+                stats['five_star_max_count'] = int(np.max(five_star_intervals))
+
+        # 计算5★UP武器的统计信息
         if len(up_positions) > 1:
             import numpy as np
             # 计算相邻UP之间的抽数间隔
@@ -678,11 +732,29 @@ class WeaponWishSimulator:
                 intervals.append(up_positions[i] - up_positions[i-1])
             
             if intervals:
-                stats['avg_count'] = float(np.mean(intervals))
-                stats['median_count'] = float(np.median(intervals))
-                stats['std_count'] = float(np.std(intervals))
-                stats['min_count'] = int(np.min(intervals))
-                stats['max_count'] = int(np.max(intervals))
+                stats['five_star_up_avg_count'] = float(np.mean(intervals))
+                stats['five_star_up_median_count'] = float(np.median(intervals))
+                stats['five_star_up_std_count'] = float(np.std(intervals))
+                stats['five_star_up_min_count'] = int(np.min(intervals))
+                stats['five_star_up_max_count'] = int(np.max(intervals))
+
+        # 计算定轨武器的统计信息
+        if current_selected_fate_weapon and len(fate_weapon_positions) > 1:
+            import numpy as np
+            # 计算相邻定轨武器命中之间的抽数间隔
+            fate_intervals = []
+            for i in range(1, len(fate_weapon_positions)):
+                fate_intervals.append(fate_weapon_positions[i] - fate_weapon_positions[i-1])
+            
+            if fate_intervals:
+                stats['fate_weapon_stats'] = {
+                    'weapon_name': current_selected_fate_weapon,
+                    'avg_count': float(np.mean(fate_intervals)),
+                    'median_count': float(np.median(fate_intervals)),
+                    'std_count': float(np.std(fate_intervals)),
+                    'min_count': int(np.min(fate_intervals)),
+                    'max_count': int(np.max(fate_intervals))
+                }
 
         return {
             'five_star_up_counts': current_five_star_up_counts,
@@ -690,16 +762,7 @@ class WeaponWishSimulator:
             'four_star_up_count': current_four_star_up_count,
             'four_star_avg_count': current_four_star_avg_count,
             'total_hits': total_hits,
-            'total_four_star_hits': total_four_star_hits,
             'five_star_costs': five_star_costs,
-            'pity_history': pity_history,
-            'four_star_pity_history': four_star_pity_history,
-            'hit_positions': hit_positions,
-            'up_positions': up_positions,
-            'avg_positions': avg_positions,
-            'four_star_positions': four_star_positions,
-            'four_star_up_positions': four_star_up_positions,
             'stats': stats,
-            'last_five_star_cost': current_last_five_star_cost,
-            'selected_fate_weapon': current_selected_fate_weapon
+            'strategy': strategy
         }
