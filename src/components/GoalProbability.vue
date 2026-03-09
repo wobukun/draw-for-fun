@@ -480,7 +480,6 @@ export default {
         primogems: this.form.primogems || 0,
         crystals: this.form.crystals || 0,
         strategy: "character_then_weapon",
-        trials: this.form.trials,
         // 命之座层数和精炼等级
         target_character_constellation_1: this.form.targetCharacterConstellation1 || 0,
         target_character_constellation_2: this.form.targetCharacterConstellation2 || 0,

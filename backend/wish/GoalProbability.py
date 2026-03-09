@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Literal
 
 import numpy as np
@@ -150,38 +151,53 @@ class GoalProbabilityCalculator:
 
     # ===== 核心模拟方法 =====
 
-    def _simulate_one_trial(
-        self,
+    @classmethod
+    @lru_cache(maxsize=10000)
+    def _simulate_one_trial_cached(
+        cls,
         *,
         pulls: int,
-        targets: Targets,
+        five_star_up_character_1: int,
+        five_star_up_character_2: int,
+        five_star_up_weapon_1: int,
+        five_star_up_weapon_2: int,
         strategy: Strategy,
         seed: int,
-        start: StartState,
-        draw_character_module,
-        draw_character2_module,
-        draw_weapon_module,
+        character_pity: int,
+        character_guarantee_up: bool,
+        weapon_pity: int,
+        weapon_guarantee_up: bool,
+        weapon_fate_point: int,
     ) -> bool:
-        """模拟单次试验
+        """模拟单次试验（可缓存版本）
 
         Args:
             pulls: 总抽数
-            targets: 抽卡目标
+            five_star_up_character_1: 5星UP角色-1的目标数量
+            five_star_up_character_2: 5星UP角色-2的目标数量
+            five_star_up_weapon_1: 5星UP武器-1的目标数量
+            five_star_up_weapon_2: 5星UP武器-2的目标数量
             strategy: 抽取策略
             seed: 随机种子
-            start: 起始状态
-            draw_character_module: 角色抽卡模块（UP角色-1）
-            draw_character2_module: 角色抽卡模块2（UP角色-2）
-            draw_weapon_module: 武器抽卡模块
+            character_pity: 当前已连续未抽中5星角色的抽数
+            character_guarantee_up: 下次5星是否必定为UP角色
+            weapon_pity: 当前已连续未抽中5星武器的抽数
+            weapon_guarantee_up: 下次5星是否必定为UP武器
+            weapon_fate_point: 命定值（0或1）
 
         Returns:
             bool: 是否达成目标
         """
+        # 导入模块
+        import backend.wish.CharacterWish as draw_character_module
+        import backend.wish.CharacterWish2 as draw_character2_module
+        import backend.wish.WeaponWish as draw_weapon_module
+        
         # 预计算目标数量，减少重复计算
-        need_char1 = max(0, int(targets.five_star_up_character_1))
-        need_char2 = max(0, int(targets.five_star_up_character_2))
-        need_weap1 = max(0, int(targets.five_star_up_weapon_1))
-        need_weap2 = max(0, int(targets.five_star_up_weapon_2))
+        need_char1 = max(0, int(five_star_up_character_1))
+        need_char2 = max(0, int(five_star_up_character_2))
+        need_weap1 = max(0, int(five_star_up_weapon_1))
+        need_weap2 = max(0, int(five_star_up_weapon_2))
         
         remaining = int(pulls)
 
@@ -206,16 +222,16 @@ class GoalProbabilityCalculator:
 
         # 创建角色模拟器实例（UP角色-1 和 UP角色-2 分别在不同的池子，但共享保底）
         # 使用相同的seed和初始状态，确保保底同步
-        char1_sim = CharacterWishSimulator(pity=start.character_pity, seed=seed_char)
-        char1_sim.guarantee_up = bool(start.character_guarantee_up)
+        char1_sim = CharacterWishSimulator(pity=character_pity, seed=seed_char)
+        char1_sim.guarantee_up = bool(character_guarantee_up)
         
-        char2_sim = CharacterWish2Simulator(pity=start.character_pity, seed=seed_char)
-        char2_sim.guarantee_up = bool(start.character_guarantee_up)
+        char2_sim = CharacterWish2Simulator(pity=character_pity, seed=seed_char)
+        char2_sim.guarantee_up = bool(character_guarantee_up)
 
         # 创建武器模拟器实例
-        weap_sim = WeaponWishSimulator(pity=start.weapon_pity, seed=seed_weap)
-        weap_sim.guarantee_up = bool(start.weapon_guarantee_up)
-        weap_sim.fate_point = int(start.weapon_fate_point)
+        weap_sim = WeaponWishSimulator(pity=weapon_pity, seed=seed_weap)
+        weap_sim.guarantee_up = bool(weapon_guarantee_up)
+        weap_sim.fate_point = int(weapon_fate_point)
 
         # 辅助函数：同步角色池状态（保底计数和UP保证状态）
         def sync_character_state(source_sim, target_sim):
@@ -329,25 +345,23 @@ class GoalProbabilityCalculator:
             got_weap2 >= need_weap2
         )
 
-    def estimate_goal_probability(
+    def _simulate_one_trial(
         self,
         *,
         pulls: int,
         targets: Targets,
-        trials: int,
         strategy: Strategy,
-        seed: int | None,
+        seed: int,
         start: StartState,
         draw_character_module,
         draw_character2_module,
         draw_weapon_module,
-    ) -> dict:
-        """估算目标达成概率
+    ) -> bool:
+        """模拟单次试验（调用可缓存版本）
 
         Args:
             pulls: 总抽数
             targets: 抽卡目标
-            trials: 试验次数
             strategy: 抽取策略
             seed: 随机种子
             start: 起始状态
@@ -356,8 +370,67 @@ class GoalProbabilityCalculator:
             draw_weapon_module: 武器抽卡模块
 
         Returns:
+            bool: 是否达成目标
+        """
+        return self.__class__._simulate_one_trial_cached(
+            pulls=pulls,
+            five_star_up_character_1=targets.five_star_up_character_1,
+            five_star_up_character_2=targets.five_star_up_character_2,
+            five_star_up_weapon_1=targets.five_star_up_weapon_1,
+            five_star_up_weapon_2=targets.five_star_up_weapon_2,
+            strategy=strategy,
+            seed=seed,
+            character_pity=start.character_pity,
+            character_guarantee_up=start.character_guarantee_up,
+            weapon_pity=start.weapon_pity,
+            weapon_guarantee_up=start.weapon_guarantee_up,
+            weapon_fate_point=start.weapon_fate_point,
+        )
+
+    @classmethod
+    @lru_cache(maxsize=1000)
+    def estimate_goal_probability_cached(
+        cls,
+        *,
+        pulls: int,
+        five_star_up_character_1: int,
+        five_star_up_character_2: int,
+        five_star_up_weapon_1: int,
+        five_star_up_weapon_2: int,
+        trials: int,
+        strategy: Strategy,
+        seed: int | None,
+        character_pity: int,
+        character_guarantee_up: bool,
+        weapon_pity: int,
+        weapon_guarantee_up: bool,
+        weapon_fate_point: int,
+    ) -> dict:
+        """估算目标达成概率（可缓存版本）
+
+        Args:
+            pulls: 总抽数
+            five_star_up_character_1: 5星UP角色-1的目标数量
+            five_star_up_character_2: 5星UP角色-2的目标数量
+            five_star_up_weapon_1: 5星UP武器-1的目标数量
+            five_star_up_weapon_2: 5星UP武器-2的目标数量
+            trials: 试验次数
+            strategy: 抽取策略
+            seed: 随机种子
+            character_pity: 当前已连续未抽中5星角色的抽数
+            character_guarantee_up: 下次5星是否必定为UP角色
+            weapon_pity: 当前已连续未抽中5星武器的抽数
+            weapon_guarantee_up: 下次5星是否必定为UP武器
+            weapon_fate_point: 命定值（0或1）
+
+        Returns:
             dict: 包含概率估算结果的字典
         """
+        # 导入模块
+        import backend.wish.CharacterWish as draw_character_module
+        import backend.wish.CharacterWish2 as draw_character2_module
+        import backend.wish.WeaponWish as draw_weapon_module
+        
         pulls = int(pulls)
         trials = int(trials)
         if pulls < 0:
@@ -366,7 +439,7 @@ class GoalProbabilityCalculator:
             raise ValueError("trials must be >0")
 
         # 计算总目标拷贝数
-        total_needed = targets.total_target_copies()
+        total_needed = five_star_up_character_1 + five_star_up_character_2 + five_star_up_weapon_1 + five_star_up_weapon_2
 
         # 当总抽数小于总目标拷贝数时，概率应显示为0
         if pulls < total_needed:
@@ -381,10 +454,10 @@ class GoalProbabilityCalculator:
                 "frequency_estimate": 0.0,
                 "ci95_wilson": [0.0, 0.0],
                 "targets": {
-                    "five_star_up_character_1": targets.five_star_up_character_1,
-                    "five_star_up_character_2": targets.five_star_up_character_2,
-                    "five_star_up_weapon_1": targets.five_star_up_weapon_1,
-                    "five_star_up_weapon_2": targets.five_star_up_weapon_2
+                    "five_star_up_character_1": five_star_up_character_1,
+                    "five_star_up_character_2": five_star_up_character_2,
+                    "five_star_up_weapon_1": five_star_up_weapon_1,
+                    "five_star_up_weapon_2": five_star_up_weapon_2
                 },
                 "best": {
                     "probability": 0.0,
@@ -396,10 +469,10 @@ class GoalProbabilityCalculator:
         # 当抽数足够大时，直接返回100%概率
         # 计算最大可能的抽数（100%概率）
         total_pulls_needed = (
-            (targets.five_star_up_character_1 * 180) +
-            (targets.five_star_up_character_2 * 180) +
-            (targets.five_star_up_weapon_1 * 160) +
-            (targets.five_star_up_weapon_2 * 160)
+            (five_star_up_character_1 * 180) +
+            (five_star_up_character_2 * 180) +
+            (five_star_up_weapon_1 * 160) +
+            (five_star_up_weapon_2 * 160)
         )
 
         # 检查是否满足条件
@@ -415,10 +488,10 @@ class GoalProbabilityCalculator:
                 "frequency_estimate": 1.0,
                 "ci95_wilson": [1.0, 1.0],
                 "targets": {
-                    "five_star_up_character_1": targets.five_star_up_character_1,
-                    "five_star_up_character_2": targets.five_star_up_character_2,
-                    "five_star_up_weapon_1": targets.five_star_up_weapon_1,
-                    "five_star_up_weapon_2": targets.five_star_up_weapon_2
+                    "five_star_up_character_1": five_star_up_character_1,
+                    "five_star_up_character_2": five_star_up_character_2,
+                    "five_star_up_weapon_1": five_star_up_weapon_1,
+                    "five_star_up_weapon_2": five_star_up_weapon_2
                 },
                 "best": {
                     "probability": 1.0,
@@ -427,8 +500,8 @@ class GoalProbabilityCalculator:
                 }
             }
 
-        # 使用实例属性中的模拟次数
-        effective_trials = self.trials
+        # 使用传入的trials参数
+        effective_trials = trials
 
         base_seed = 123456789 if seed is None else int(seed)
         ss = np.random.SeedSequence(base_seed)
@@ -438,15 +511,19 @@ class GoalProbabilityCalculator:
 
         # 定义模拟函数
         def simulate_trial(trial_seed):
-            return self._simulate_one_trial(
+            return cls._simulate_one_trial_cached(
                 pulls=pulls,
-                targets=targets,
+                five_star_up_character_1=five_star_up_character_1,
+                five_star_up_character_2=five_star_up_character_2,
+                five_star_up_weapon_1=five_star_up_weapon_1,
+                five_star_up_weapon_2=five_star_up_weapon_2,
                 strategy=strategy,
                 seed=trial_seed,
-                start=start,
-                draw_character_module=draw_character_module,
-                draw_character2_module=draw_character2_module,
-                draw_weapon_module=draw_weapon_module,
+                character_pity=character_pity,
+                character_guarantee_up=character_guarantee_up,
+                weapon_pity=weapon_pity,
+                weapon_guarantee_up=weapon_guarantee_up,
+                weapon_fate_point=weapon_fate_point,
             )
 
         # 尝试使用并行计算
@@ -470,7 +547,7 @@ class GoalProbabilityCalculator:
         # posterior mean = (s + 0.5) / (n + 1)
         bayes_p = (successes + 0.5) / (effective_trials + 1) if effective_trials else 0.0
 
-        ci_lo, ci_hi = self._wilson_ci95(successes, effective_trials)
+        ci_lo, ci_hi = cls._wilson_ci95(successes, effective_trials)
         return {
             "strategy": strategy,
             "resources": pulls,
@@ -483,10 +560,10 @@ class GoalProbabilityCalculator:
             "frequency_estimate": float(freq_p),
             "ci95_wilson": [ci_lo, ci_hi],
             "targets": {
-                "five_star_up_character_1": targets.five_star_up_character_1,
-                "five_star_up_character_2": targets.five_star_up_character_2,
-                "five_star_up_weapon_1": targets.five_star_up_weapon_1,
-                "five_star_up_weapon_2": targets.five_star_up_weapon_2
+                "five_star_up_character_1": five_star_up_character_1,
+                "five_star_up_character_2": five_star_up_character_2,
+                "five_star_up_weapon_1": five_star_up_weapon_1,
+                "five_star_up_weapon_2": five_star_up_weapon_2
             },
             "best": {
                 "probability": float(bayes_p),
@@ -494,6 +571,51 @@ class GoalProbabilityCalculator:
                 "trials_used": effective_trials
             }
         }
+
+    def estimate_goal_probability(
+        self,
+        *,
+        pulls: int,
+        targets: Targets,
+        trials: int,
+        strategy: Strategy,
+        seed: int | None,
+        start: StartState,
+        draw_character_module,
+        draw_character2_module,
+        draw_weapon_module,
+    ) -> dict:
+        """估算目标达成概率（调用可缓存版本）
+
+        Args:
+            pulls: 总抽数
+            targets: 抽卡目标
+            trials: 试验次数
+            strategy: 抽取策略
+            seed: 随机种子
+            start: 起始状态
+            draw_character_module: 角色抽卡模块（UP角色-1）
+            draw_character2_module: 角色抽卡模块2（UP角色-2）
+            draw_weapon_module: 武器抽卡模块
+
+        Returns:
+            dict: 包含概率估算结果的字典
+        """
+        return self.__class__.estimate_goal_probability_cached(
+            pulls=pulls,
+            five_star_up_character_1=targets.five_star_up_character_1,
+            five_star_up_character_2=targets.five_star_up_character_2,
+            five_star_up_weapon_1=targets.five_star_up_weapon_1,
+            five_star_up_weapon_2=targets.five_star_up_weapon_2,
+            trials=trials,
+            strategy=strategy,
+            seed=seed,
+            character_pity=start.character_pity,
+            character_guarantee_up=start.character_guarantee_up,
+            weapon_pity=start.weapon_pity,
+            weapon_guarantee_up=start.weapon_guarantee_up,
+            weapon_fate_point=start.weapon_fate_point,
+        )
 
     def _find_first_pulls_meeting_probability(
         self,

@@ -633,16 +633,16 @@ class CharacterWishSimulator2:
         if len(up_positions) > 1:
             import numpy as np
             # 计算相邻UP之间的抽数间隔
-            intervals = []
+            five_star_up_intervals = []
             for i in range(1, len(up_positions)):
-                intervals.append(up_positions[i] - up_positions[i-1])
+                five_star_up_intervals.append(up_positions[i] - up_positions[i-1])
             
-            if intervals:
-                stats['five_star_up_avg_count'] = float(np.mean(intervals))
-                stats['five_star_up_median_count'] = float(np.median(intervals))
-                stats['five_star_up_std_count'] = float(np.std(intervals))
-                stats['five_star_up_min_count'] = int(np.min(intervals))
-                stats['five_star_up_max_count'] = int(np.max(intervals))
+            if five_star_up_intervals:
+                stats['five_star_up_avg_count'] = float(np.mean(five_star_up_intervals))
+                stats['five_star_up_median_count'] = float(np.median(five_star_up_intervals))
+                stats['five_star_up_std_count'] = float(np.std(five_star_up_intervals))
+                stats['five_star_up_min_count'] = int(np.min(five_star_up_intervals))
+                stats['five_star_up_max_count'] = int(np.max(five_star_up_intervals))
 
         return {
             'up_count': current_up_count,
